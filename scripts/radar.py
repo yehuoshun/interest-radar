@@ -305,15 +305,16 @@ def cmd_reply(a):
     if f.exists() and any(a.bv in l and "mentioned" in l for l in f.read_text(encoding="utf-8").splitlines()):
         die(f"闸③：{a.bv} 已经 @ 过了 —— 同一视频只发一次", 5)
 
-    # 闸⑥：每日总量上限（防刷屏 / 防被风控盯上）
+    # 闸⑥：每日总量上限（仅当 >0 时生效；0/缺省 = 不限 —— 量控交给“同一视频一条”闸③）
     today = time.strftime("%Y-%m-%d")
-    per_day = int(cfg.get("max_per_day") or 1)
-    used = 0
-    if f.exists():
-        used = sum(1 for l in f.read_text(encoding="utf-8").splitlines()
-                   if l.startswith(today) and "mentioned" in l)
-    if used >= per_day:
-        die(f"闸⑥：今天已经 @ 过 {used} 条（上限 {per_day}）—— 不再发", 11)
+    per_day = int(cfg.get("max_per_day") or 0)
+    if per_day > 0:
+        used = 0
+        if f.exists():
+            used = sum(1 for l in f.read_text(encoding="utf-8").splitlines()
+                       if l.startswith(today) and "mentioned" in l)
+        if used >= per_day:
+            die(f"闸⑥：今天已经 @ 过 {used} 条（上限 {per_day}）—— 不再发", 11)
 
     cookie = load_cookie()
     raw = cookie_path().read_text(encoding="utf-8")
