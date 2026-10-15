@@ -253,6 +253,24 @@ def cmd_seen(a):
     die("用法：seen check <BV号> | seen add <日期> <BV号> <verdict> [标题]")
 
 
+def note_failure(d: Path) -> int:
+    """记一次发评论失败，返回今天的累计失败次数（≥3 → 调用方关闸）。"""
+    f = d / "mention-fails.json"
+    today = time.strftime("%Y-%m-%d")
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        data = {}
+    if data.get("date") != today:
+        data = {"date": today, "count": 0}
+    data["count"] = int(data.get("count", 0)) + 1
+    try:
+        f.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    return data["count"]
+
+
 def read_config():
     f = state_dir() / "config.json"
     try:
@@ -286,6 +304,16 @@ def cmd_reply(a):
     f = d / "seen.md"
     if f.exists() and any(a.bv in l and "mentioned" in l for l in f.read_text(encoding="utf-8").splitlines()):
         die(f"闸③：{a.bv} 已经 @ 过了 —— 同一视频只发一次", 5)
+
+    # 闸⑥：每日总量上限（防刷屏 / 防被风控盯上）
+    today = time.strftime("%Y-%m-%d")
+    per_day = int(cfg.get("max_per_day") or 1)
+    used = 0
+    if f.exists():
+        used = sum(1 for l in f.read_text(encoding="utf-8").splitlines()
+                   if l.startswith(today) and "mentioned" in l)
+    if used >= per_day:
+        die(f"闸⑥：今天已经 @ 过 {used} 条（上限 {per_day}）—— 不再发", 11)
 
     cookie = load_cookie()
     raw = cookie_path().read_text(encoding="utf-8")
@@ -326,7 +354,18 @@ def cmd_reply(a):
     except Exception as e:  # noqa: BLE001
         die(f"发评论请求失败：{type(e).__name__}: {e}", 8)
     if res.get("code") != 0:
-        die(f"发评论被拒：code={res.get('code')} msg={res.get('message')}", 9)
+        # 风控类错误计数：连续失败就把开关关了（防账号被爆），等人来看
+        hits = note_failure(d)
+        if hits >= 3:
+            cf = d / "config.json"
+            try:
+                cfgall = json.loads(cf.read_text(encoding="utf-8"))
+                cfgall.setdefault("mention", {})["enabled"] = False
+                cf.write_text(json.dumps(cfall, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                print("⚠️ 连续 3 次发评论失败 → 已自动关掉 mention.enabled（防账号被爆），等本人来看", file=sys.stderr)
+            except Exception:  # noqa: BLE001
+                pass
+        die(f"发评论被拒：code={res.get('code')} msg={res.get('message')}（累计失败 {hits} 次）", 9)
     rpid = ((res.get("data") or {}).get("rpid_str") or (res.get("data") or {}).get("rpid"))
     # 发完自检：匿名看不看得到（阿瓦隆拦了就记一行，别人看得到才算真发出去）
     time.sleep(3)
