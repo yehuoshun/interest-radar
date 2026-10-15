@@ -229,6 +229,83 @@ def cmd_seen(a):
     die("用法：seen check <BV号> | seen add <日期> <BV号> <verdict> [标题]")
 
 
+def read_config():
+    f = state_dir() / "config.json"
+    try:
+        return json.loads(f.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def csrf_from_cookie(raw: str) -> str:
+    m = re.search(r"bili_jct=([^;\s]+)", raw)
+    return m.group(1) if m else ""
+
+
+def cmd_reply(a):
+    """在视频评论區 @ 某人（默认干跑；真正发要 --yes + config 开关 + 昵称）。
+
+    闸（四道，全在代码里，不靠提示词）：
+      ① config.json 的 mention.enabled 必须为 true，且 mention.name 非空
+      ② 必须显式 --yes（默认干跑）
+      ③ 同一 BV 只发一次（查 seen.md 里的 mentioned 记录）
+      ④ 正文 ≤ 150 字，且必须含 @nickname
+    """
+    cfg = read_config().get("mention") or {}
+    name = (cfg.get("name") or "").strip()
+    if not cfg.get("enabled"):
+        die("闸①：config.json 里 mention.enabled 不是 true —— 拒绝发评论", 4)
+    if not name:
+        die("闸①：config.json 里 mention.name 为空（@ 谁？）—— 拒绝发评论", 4)
+
+    d = state_dir()
+    f = d / "seen.md"
+    if f.exists() and any(a.bv in l and "mentioned" in l for l in f.read_text(encoding="utf-8").splitlines()):
+        die(f"闸③：{a.bv} 已经 @ 过了 —— 同一视频只发一次", 5)
+
+    cookie = load_cookie()
+    raw = cookie_path().read_text(encoding="utf-8")
+    jct = csrf_from_cookie(raw)
+    if not jct:
+        die("cookie 里没有 bili_jct（csrf）—— 没法发评论", 6)
+
+    text = (a.text or f"@{name} 这个值得看一眼").strip()
+    if name not in text:
+        text = f"@{name} {text}"
+    if len(text) > 150:
+        die(f"闸④：正文 {len(text)} 字 > 150 字上限", 7)
+
+    v = get(f"{API}/x/web-interface/view?bvid={a.bv}", cookie)["data"]
+    aid, title = v["aid"], v.get("title")
+    out = {"bvid": a.bv, "aid": aid, "title": title, "text": text,
+           "url": f"https://www.bilibili.com/video/{a.bv}", "dry_run": not a.yes}
+    if not a.yes:
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        print("（干跑：要真发请加 --yes）", file=sys.stderr)
+        return
+
+    body = urllib.parse.urlencode({
+        "type": 1, "oid": aid, "message": text, "csrf": jct,
+        "plat": 1, "ordering": "heat",
+    }).encode()
+    req = urllib.request.Request(f"{API}/x/v2/reply/add", data=body, headers={
+        "User-Agent": UA, "Referer": f"https://www.bilibili.com/video/{a.bv}",
+        "Cookie": cookie, "Content-Type": "application/x-www-form-urlencoded",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            res = json.load(r)
+    except Exception as e:  # noqa: BLE001
+        die(f"发评论请求失败：{type(e).__name__}: {e}", 8)
+    if res.get("code") != 0:
+        die(f"发评论被拒：code={res.get('code')} msg={res.get('message')}", 9)
+    rpid = ((res.get("data") or {}).get("rpid_str") or (res.get("data") or {}).get("rpid"))
+    with f.open("a", encoding="utf-8") as fh:
+        fh.write(f"{time.strftime('%Y-%m-%d')} | bilibili | {a.bv} | mentioned | {title}\n")
+    out.update({"posted": True, "rpid": rpid})
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
 def cmd_feedback(a):
     d = state_dir()
     d.mkdir(parents=True, exist_ok=True)
@@ -301,6 +378,12 @@ def main():
     s.add_argument("action", choices=["check", "add"])
     s.add_argument("rest", nargs="*")
     s.set_defaults(fn=cmd_seen)
+
+    s = sub.add_parser("reply")
+    s.add_argument("--bv", required=True)
+    s.add_argument("--text", help="评论正文（默认「@昵称 这个值得看一眼」）")
+    s.add_argument("--yes", action="store_true", help="真正发出（默认干跑，只打印会发什么）")
+    s.set_defaults(fn=cmd_reply)
 
     s = sub.add_parser("feedback")
     s.add_argument("--topic", required=True)

@@ -10,7 +10,7 @@ description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真�
 
 ## 硬规则
 
-- **只读不写**：不发评论、不发动态、不发私信、不互动。这套东西只做「读 + 挑 + 汇报」。
+- **默认只读不写**：不发评论、不发动态、不发私信、不互动。**唯一例外**是下面「评论与 @」那段——它在 `config.json` 里默认关着。
 - **兴趣档案不出本机**：`interests/` 里的任何内容不进公开平台、不进外部日志。
 - **不读 OpenClaw 的 memory 全文**（噪音源）。需要候选池时只看你自己的项目清单（别拿助手的长期记忆当兴趣源，那是噪音）。
 - **不给档案灌历史数据**：档案只由本人明写 + 👍/👎 反馈生长，别自作聪明导入 star/收藏。
@@ -38,6 +38,7 @@ python3 $R seen check BV1xxx                        # SEEN / NEW
 python3 $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
 python3 $R feedback --topic "主题" --signal like --bv BV1xxx --score 4
 python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
+python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
 ```
 
 - cookie 文件：`~/.openclaw/secrets/bilibili-cookies.txt`（小号；失效就找本人重新导出）
@@ -57,6 +58,22 @@ python3 $R stats                                    # 权重 + 已看条数（�
 8. **写报告** `out/<YYYY-MM-DD>.md`（格式见下）。
 9. **推送**：只推总分最高的 **0-3 条**到你的渠道（按渠道配置解析 target）。**0 条就别推、别凑数**。
 10. **结尾**：报告后加一行「本轮扫了 N 条、读了 M 条字幕、留下 K 条」。
+
+## 评论与 @（**默认关**）
+
+目的只有一个：让使用者自己能上 B站 看到「今天有什么值得看」。**不互动、不吵架、不带档案内容**。
+
+四道闸全在**代码里**（不靠提示词），缺一不发：
+
+1. `config.json` 里 `mention.enabled = true` **且** `mention.name` 非空
+2. 命令行必须显式加 `--yes`（**默认干跑**，只打印将要发的内容）
+3. 同一 BV 只发一次（查 `seen.md` 的 `mentioned` 记录）
+4. 正文 ≤ 150 字，且必须包含 `@昵称`
+
+正文默认用 `config.json` 里的 `template`；**模板里不许出现档案、项目名、私人信息**。
+撤除：`/x/v2/reply/del`（带 `csrf`）可删，实测 code=0。
+
+> 风险自担：评论是**公开**的；小号 @ 主号等于把两个号公开关联；新号发言有风控概率。
 
 ## 报告格式（`interests/out/<日期>.md`）
 
