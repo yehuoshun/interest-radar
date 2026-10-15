@@ -39,6 +39,7 @@ python3 $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
 python3 $R feedback --topic "主题" --signal like --bv BV1xxx --score 4
 python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
 python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
+python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 ```
 
 - cookie 文件：`~/.openclaw/secrets/bilibili-cookies.txt`（小号；失效就找本人重新导出）
@@ -57,7 +58,8 @@ python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认�
 7. **判重**：`seen check`，SEEN 的跳过；每条处理完 `seen add`。
 8. **写报告** `out/<YYYY-MM-DD>.md`（格式见下）。
 9. **推送**：只推总分最高的 **0-3 条**到你的渠道（按渠道配置解析 target）。**0 条就别推、别凑数**。
-10. **结尾**：报告后加一行「本轮扫了 N 条、读了 M 条字幕、留下 K 条」。
+10. **（可选）谁找我**：`notify --new-only`，有新 @/回复就在推送里附一行（只读元数据；私信只报未读计数，不读正文）。
+11. **结尾**：报告后加一行「本轮扫了 N 条、读了 M 条字幕、留下 K 条」。
 
 ## 评论与 @（**默认关**）
 

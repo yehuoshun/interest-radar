@@ -306,6 +306,61 @@ def cmd_reply(a):
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
+def cmd_notify(a):
+    """谁能找到我：读自己的 B站 通知（@我的 / 回复我的 / 未读计数）。
+
+    只读 @ 和回复的**元数据**（谁、何时、在哪个视频），不写正文。
+    私信正文读不到（要 app 签名），这里只报未读计数。
+    """
+    cookie = load_cookie()
+    un = radar_unread(cookie)
+    out = {"unread": un, "at": [], "reply": []}
+
+    def norm(items, tkey):
+        rows = []
+        for it in items or []:
+            u = it.get("user") or {}
+            item = it.get("item") or {}
+            c = it.get("content") or {}
+            rows.append({
+                "from": u.get("nickname"),
+                "mid": u.get("mid"),
+                "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(
+                    it.get(tkey) or it.get("time") or 0)),
+                "title": item.get("title"),
+                "uri": item.get("uri"),
+                "text": c.get("message") or c.get("title") or "",
+            })
+        return rows
+
+    out["at"] = norm((get(f"{API}/x/msgfeed/at?build=0&mobi_app=web", cookie).get("data") or {}).get("items"), "at_time")
+    out["reply"] = norm((get(f"{API}/x/msgfeed/reply?build=0&mobi_app=web", cookie).get("data") or {}).get("items"), "reply_time")
+    out["summary"] = (f"@我 {out['unread'].get('at', 0)} 条、回复 {out['unread'].get('reply', 0)} 条、"
+                      f"赞 {out['unread'].get('like', 0)}、私信未读 {out['unread'].get('chat', 0)}")
+
+    # ⚠️ 读过就可能把“未读”清掉 —— 所以判新要用**时间水位**，不能靠未读计数
+    if a.new_only:
+        wf = state_dir() / "notify-state.json"
+        try:
+            wm = json.loads(wf.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            wm = {}
+        for k in ("at", "reply"):
+            last = wm.get(k) or ""
+            fresh = [r for r in out[k] if r["time"] > last]
+            if out[k]:
+                wm[k] = max(r["time"] for r in out[k])
+            out[k] = fresh
+            out[f"{k}_new"] = len(fresh)
+        wf.parent.mkdir(parents=True, exist_ok=True)
+        wf.write_text(json.dumps(wm, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
+def radar_unread(cookie):
+    return get(f"{API}/x/msgfeed/unread", cookie).get("data") or {}
+
+
 def cmd_feedback(a):
     d = state_dir()
     d.mkdir(parents=True, exist_ok=True)
@@ -393,6 +448,10 @@ def main():
     s.add_argument("--note")
     s.set_defaults(fn=cmd_feedback)
 
+    s = sub.add_parser("notify")
+    s.add_argument("--new-only", dest="new_only", action="store_true",
+                   help="只列比上次新的（用时间水位，不靠未读计数）")
+    s.set_defaults(fn=cmd_notify)
     sub.add_parser("stats").set_defaults(fn=cmd_stats)
 
     a = ap.parse_args()
