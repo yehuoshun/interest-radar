@@ -27,6 +27,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -305,7 +306,7 @@ def cmd_reply(a):
     if f.exists() and any(a.bv in l and "mentioned" in l for l in f.read_text(encoding="utf-8").splitlines()):
         die(f"闸③：{a.bv} 已经 @ 过了 —— 同一视频只发一次", 5)
 
-    # 闸⑥：每日总量上限（仅当 >0 时生效；0/缺省 = 不限 —— 量控交给“同一视频一条”闸③）
+    # 闸⑥：每日上限（仅当 >0 时生效；0 = 不限）
     today = time.strftime("%Y-%m-%d")
     per_day = int(cfg.get("max_per_day") or 0)
     if per_day > 0:
@@ -315,6 +316,24 @@ def cmd_reply(a):
                        if l.startswith(today) and "mentioned" in l)
         if used >= per_day:
             die(f"闸⑥：今天已经 @ 过 {used} 条（上限 {per_day}）—— 不再发", 11)
+
+    # 闸⑦：冷却（新号防高强度）—— 两次 @ 至少隔 cooldown_hours 小时
+    cd = float(cfg.get("cooldown_hours") or 0)
+    log = d / "mention-log.jsonl"
+    if cd > 0 and log.exists():
+        last = None
+        for line in log.read_text(encoding="utf-8").splitlines():
+            try:
+                last = json.loads(line).get("ts")
+            except Exception:  # noqa: BLE001
+                continue
+        if last:
+            try:
+                ago = (datetime.now() - datetime.fromisoformat(last)).total_seconds() / 3600
+                if ago < cd:
+                    die(f"闸⑦：上次 @ 才过去 {ago:.1f} 小时（冷却 {cd}h）—— 新号别高强度，稍后再来", 12)
+            except Exception:  # noqa: BLE001
+                pass
 
     cookie = load_cookie()
     raw = cookie_path().read_text(encoding="utf-8")
@@ -378,6 +397,10 @@ def cmd_reply(a):
     note = {True: "公开可见", False: "匿名不可见（可能被拦/审核中）", None: "未验证"}[vis]
     with f.open("a", encoding="utf-8") as fh:
         fh.write(f"{time.strftime('%Y-%m-%d')} | bilibili | {a.bv} | mentioned | {title} | rpid={rpid} | {note}\n")
+    with (d / "mention-log.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"ts": datetime.now().isoformat(timespec="seconds"),
+                             "bv": a.bv, "rpid": rpid, "visible_anon": vis},
+                            ensure_ascii=False) + "\n")
     out.update({"posted": True, "rpid": rpid, "visible_anon": vis, "verdict": note})
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
