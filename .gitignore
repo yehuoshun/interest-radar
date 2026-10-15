@@ -1,0 +1,15 @@
+# 运行数据 / 私人档案 —— 一律不进仓库
+weights.json
+evidence.jsonl
+seen.md
+out/
+config.json
+bili_credential.json
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# 杂项
+.DS_Store

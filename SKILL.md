@@ -1,0 +1,85 @@
+---
+name: interest-radar
+description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真正值得占用你一次注意力的东西，写成日报并推送到微信。当用户要求「跑一轮兴趣雷达 / 今天的雷达 / 每天帮我筛 B站 / 给我推值得看的东西 / 更新兴趣档案 / 记录反馈」时使用。判断口径与红线见 interests/charter.md。
+---
+
+# 兴趣雷达（interest-radar）
+
+每天一轮：**读兴趣档案 → 搜 → 读字幕原文 → 四维打分 → 判重 → 写日报 → 推微信**。
+不是搜索机器人：**"值不值得占用他一次注意力"是唯一的判据**，宁缺勿滥，**一天 0 条是合法输出**。
+
+## 硬规则
+
+- **只读不写**：不发评论、不发动态、不发私信、不互动。这套东西只做「读 + 挑 + 汇报」。
+- **兴趣档案不出本机**：`interests/` 里的任何内容不进公开平台、不进外部日志。
+- **不读 OpenClaw 的 memory 全文**（噪音源）。需要候选池时只看你自己的项目清单（别拿助手的长期记忆当兴趣源，那是噪音）。
+- **不给档案灌历史数据**：档案只由本人明写 + 👍/👎 反馈生长，别自作聪明导入 star/收藏。
+- 不确定的事**不编**，宁可写「没查到」。
+
+## 状态目录（`~/.openclaw/workspace/interests/`）
+
+| 文件 | 作用 |
+|---|---|
+| `profile.md` | 兴趣线（人写，空就开始跑） |
+| `charter.md` | 章程：判据、红线、流程（**以它为准**，本文件只是操作手册） |
+| `weights.json` | 反馈权重（脚本写） |
+| `evidence.jsonl` | 反馈证据（脚本写） |
+| `seen.md` | 判重表（脚本写） |
+| `out/<日期>.md` | 每日报告 |
+
+## 命令速查
+
+```bash
+R=~/.openclaw/workspace/skills/interest-radar/scripts/radar.py
+python3 $R check                                    # 校验 cookie（读字幕必须登录）
+python3 $R search --kw "关键词" --num 20 --days 7   # 搜（order: pubdate|click|totalrank）
+python3 $R sub BV1xxxxxxxxx                         # 字幕全文；无字幕打印 NO_SUBTITLE
+python3 $R seen check BV1xxx                        # SEEN / NEW
+python3 $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
+python3 $R feedback --topic "主题" --signal like --bv BV1xxx --score 4
+python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
+```
+
+- cookie 文件：`~/.openclaw/secrets/bilibili-cookies.txt`（小号；失效就找本人重新导出）
+- 脚本只做确定性的事；**判断一律由模型做**
+
+## 一轮流程（严格按序）
+
+1. **`check`**：cookie 失效 → 直接停，**别硬跑**，报「cookie 失效，需要重新导出」。
+2. 读 `profile.md`：兴趣线 0 条 → 只按「明确不要的」过滤，**不自造兴趣**。
+3. **广撒网**：每条兴趣线搜 1-2 轮（主题 + 邻域各一次），`--days 7 --order pubdate`。
+4. **粗筛（先省 token）**：按标题/简介/时长/播放量砍掉明显不值的（入门教程、标题党、吵架场）→ **剩 ≤ 8 条候选**。
+   ⚠️ **字幕预算**：一轮最多读 **8 条** 字幕。超了就不再读，宁可少推。
+5. **逐条 `sub` 读原文**（不看摘要下判断）。`NO_SUBTITLE` → 跳过（除非本人开了转写，那就另说）。
+6. **四维打分**（各 0-5，写在报告里）：**相关性 / 新奇度 / 实操价值 / 新鲜度**
+   - 总分 ≥ 阈值（默认 **≥ 14/20**）才留；**新奇度 ≤ 1 的直接砍**（只是重复他已知道的）。
+7. **判重**：`seen check`，SEEN 的跳过；每条处理完 `seen add`。
+8. **写报告** `out/<YYYY-MM-DD>.md`（格式见下）。
+9. **推送**：只推总分最高的 **0-3 条**到你的渠道（按渠道配置解析 target）。**0 条就别推、别凑数**。
+10. **结尾**：报告后加一行「本轮扫了 N 条、读了 M 条字幕、留下 K 条」。
+
+## 报告格式（`interests/out/<日期>.md`）
+
+```markdown
+# 兴趣雷达 · 2026-10-15
+
+## 1. 标题（BV号）
+- UP / 时长 / 播放量 / 发布：`YYYY-MM-DD` / 链接
+- 打分：相关性 4 · 新奇度 3 · 实操价值 3 · 新鲜度 4（= 14）
+- 为什么值得：（两三句，具体到"他为什么会在意"，不许空话）
+- 一句话：（如果推给他，就这一句）
+
+---
+扫了 N 条 · 读了 M 条字幕 · 留下 K 条 · 本轮到 X 点停
+```
+
+## 反馈
+
+- 本人说「第 2 条不错 / 那条没用」→ `feedback --topic <兴趣线主题> --signal like|skip --bv <BV号> [--score N]`
+- **每周一次**：`stats` 汇总 → **提议**增删兴趣线，等本人点头才改 `profile.md`
+- 别自己改 `profile.md`，那是本人的地盘
+
+## 定时（cron）
+
+按 `openclaw cron` 配置，建议：每天 **08:00**（夜间谷时，醒来看），独立 session + 便宜模型，`delivery.mode=announce`。
+创建/修改 cron 的投递参数按你的渠道配置解析（微信类渠道通常要 `channel` + `to` + `accountId`）。
