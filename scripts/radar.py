@@ -174,28 +174,52 @@ def cmd_search(a):
                      ensure_ascii=False, indent=2))
 
 
-def cmd_sub(a):
-    cookie = load_cookie()
-    v = get(f"{API}/x/web-interface/view?bvid={a.bv}", cookie)["data"]
-    cid, title = v["cid"], v.get("title")
-    p = get(f"{API}/x/player/v2?bvid={a.bv}&cid={cid}", cookie)
+def fetch_subtitle_text(cookie: str, bv: str, cid: int):
+    """取一个字幕的全文。**必须用 wbi 签名的 `player/wbi/v2`**。
+
+    🔴 2026-10-15 实测事故：不带签名的旧接口 `x/player/v2` 会**返回别的视频的字幕**
+      （同一个视频两次拿到"核能"和"京都米其林"两段完全无关的内容）—— 拿它判断内容
+      等于拿别人的字幕做结论。旧接口只当兼容，不用。
+    返回 (text, lan)；拿不到就 (None, None)。
+    """
+    _, mix = wbi_keys(cookie)
+    p = get(f"{API}/x/player/wbi/v2?" + wbi_sign({"bvid": bv, "cid": cid}, mix), cookie)
     subs = ((p.get("data") or {}).get("subtitle") or {}).get("subtitles") or []
-    # 有些条目 subtitle_url 是空的（占位）—— 先过滤，优先中文
     subs = [s for s in subs if (s.get("subtitle_url") or "").strip()]
     if not subs:
-        print("NO_SUBTITLE")
-        return
+        return None, None
     pick = next((s for s in subs if str(s.get("lan", "")).startswith("zh")), subs[0])
     u = pick.get("subtitle_url") or ""
     if u.startswith("//"):
         u = "https:" + u
     body = get(u, cookie).get("body") or []
     lines = [re.sub(r"\s+", " ", b.get("content", "")).strip() for b in body]
-    lines = [l for l in lines if l]
-    text = "".join(lines)  # 字幕是逐句切片，直接拼
+    text = "".join(l for l in lines if l)
+    return (text or None), pick.get("lan")
+
+
+def cmd_sub(a):
+    cookie = load_cookie()
+    v = get(f"{API}/x/web-interface/view?bvid={a.bv}", cookie)["data"]
+    cid, title, dur = v["cid"], v.get("title"), v.get("duration") or 0
+    text, lan = fetch_subtitle_text(cookie, a.bv, cid)
+    if not text:
+        print("NO_SUBTITLE")
+        return
+    # 🔴 合理性校验：字幕字数 / 时长 的“语速”得在人类区间（3~15 字/秒）
+    rate = len(text) / dur if dur else 0
+    suspect = bool(dur) and (rate > 15 or rate < 0.8)
+    if suspect:
+        again, _ = fetch_subtitle_text(cookie, a.bv, cid)
+        if again != text:
+            print(json.dumps({"bvid": a.bv, "title": title, "suspect": True,
+                              "reason": f"语速异常 {rate:.1f} 字/秒，且两次结果不一致 —— 字幕不可信",
+                              "chars": len(text), "duration": dur}, ensure_ascii=False))
+            return
     print(json.dumps({
-        "bvid": a.bv, "title": title, "lan": pick.get("lan"),
-        "chars": len(text), "lines": len(lines),
+        "bvid": a.bv, "title": title, "lan": lan,
+        "chars": len(text), "lines": len(text), "duration": dur,
+        "rate": round(rate, 2), "suspect": suspect,
         "text": text[:a.max_chars],
         "truncated": len(text) > a.max_chars,
     }, ensure_ascii=False))
@@ -328,25 +352,35 @@ def cmd_notify(a):
     un = radar_unread(cookie)
     out = {"unread": un, "at": [], "reply": []}
 
-    def norm(items, tkey):
+    def norm(items, kind):
         rows = []
         for it in items or []:
             u = it.get("user") or {}
             item = it.get("item") or {}
             c = it.get("content") or {}
-            rows.append({
-                "from": u.get("nickname"),
-                "mid": u.get("mid"),
-                "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(
-                    it.get(tkey) or it.get("time") or 0)),
-                "title": item.get("title"),
-                "uri": item.get("uri"),
-                "text": c.get("message") or c.get("title") or "",
-            })
+            if kind == "reply":
+                # 回复：item.source_content 才是对方说的话；title 是被回复的那条
+                rows.append({
+                    "from": u.get("nickname"),
+                    "mid": u.get("mid"),
+                    "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(it.get("reply_time") or 0)),
+                    "text": item.get("source_content") or "",       # 对方回复内容
+                    "replied_to": item.get("title") or "",          # 他在回复什么
+                    "uri": item.get("uri"),
+                })
+            else:
+                rows.append({
+                    "from": u.get("nickname"),
+                    "mid": u.get("mid"),
+                    "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(it.get("at_time") or it.get("time") or 0)),
+                    "text": c.get("message") or c.get("title") or "",
+                    "title": item.get("title"),
+                    "uri": item.get("uri"),
+                })
         return rows
 
-    out["at"] = norm((get(f"{API}/x/msgfeed/at?build=0&mobi_app=web", cookie).get("data") or {}).get("items"), "at_time")
-    out["reply"] = norm((get(f"{API}/x/msgfeed/reply?build=0&mobi_app=web", cookie).get("data") or {}).get("items"), "reply_time")
+    out["at"] = norm((get(f"{API}/x/msgfeed/at?build=0&mobi_app=web", cookie).get("data") or {}).get("items"), "at")
+    out["reply"] = norm((get(f"{API}/x/msgfeed/reply?build=0&mobi_app=web", cookie).get("data") or {}).get("items"), "reply")
     out["summary"] = (f"@我 {out['unread'].get('at', 0)} 条、回复 {out['unread'].get('reply', 0)} 条、"
                       f"赞 {out['unread'].get('like', 0)}、私信未读 {out['unread'].get('chat', 0)}")
 
