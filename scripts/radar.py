@@ -285,6 +285,56 @@ def csrf_from_cookie(raw: str) -> str:
     return m.group(1) if m else ""
 
 
+def mention_log(d: Path):
+    """读 mentions 发出记录（带时间戳）。"""
+    out = []
+    f = d / "mention-log.jsonl"
+    if f.exists():
+        for line in f.read_text(encoding="utf-8").splitlines():
+            try:
+                out.append(json.loads(line))
+            except Exception:  # noqa: BLE001
+                continue
+    return out
+
+
+def cmd_rate(a):
+    """看 / 改频控参数（都在 config.json 的 mention 里，改完立即生效）。"""
+    d = state_dir()
+    cf = d / "config.json"
+    cfg = read_config().get("mention") or {}
+    if a.per_round is None and a.per_hour is None and a.per_day is None:
+        log = mention_log(d)
+        now = datetime.now()
+        h1 = sum(1 for r in log if _ago_h(r) < 1)
+        h24 = sum(1 for r in log if _ago_h(r) < 24)
+        print(json.dumps({
+            "per_round": cfg.get("per_round", 1),
+            "per_hour": cfg.get("per_hour", 1),
+            "per_day": cfg.get("per_day", 0),
+            "实际用量": {"最近 1 小时": h1, "最近 24 小时": h24, "历史合计": len(log)},
+            "说明": "0 = 不限；per_round = 每轮上限，per_hour/per_day = 滚动窗口上限",
+        }, ensure_ascii=False, indent=2))
+        return
+    try:
+        raw = json.loads(cf.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        raw = {}
+    m = raw.setdefault("mention", {})
+    for k, v in (("per_round", a.per_round), ("per_hour", a.per_hour), ("per_day", a.per_day)):
+        if v is not None:
+            m[k] = int(v)
+    cf.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"✅ 频控已更新：per_round={m.get('per_round')} / per_hour={m.get('per_hour')} / per_day={m.get('per_day')}")
+
+
+def _ago_h(rec):
+    try:
+        return (datetime.now() - datetime.fromisoformat(str(rec.get("ts")))).total_seconds() / 3600
+    except Exception:  # noqa: BLE001
+        return 1e9
+
+
 def cmd_reply(a):
     """在视频评论區 @ 某人（默认干跑；真正发要 --yes + config 开关 + 昵称）。
 
@@ -306,34 +356,18 @@ def cmd_reply(a):
     if f.exists() and any(a.bv in l and "mentioned" in l for l in f.read_text(encoding="utf-8").splitlines()):
         die(f"闸③：{a.bv} 已经 @ 过了 —— 同一视频只发一次", 5)
 
-    # 闸⑥：每日上限（仅当 >0 时生效；0 = 不限）
-    today = time.strftime("%Y-%m-%d")
-    per_day = int(cfg.get("max_per_day") or 0)
+    # 闸⑥：滚动窗口频控（都在 config.json 的 mention 里，0 = 不限）—— 新号防高强度
+    log = mention_log(d)
+    per_hour = int(cfg.get("per_hour") if cfg.get("per_hour") is not None else 1)
+    per_day = int(cfg.get("per_day") or 0)
+    if per_hour > 0:
+        n = sum(1 for r in log if _ago_h(r) < 1)
+        if n >= per_hour:
+            die(f"闸⑥：最近 1 小时已 @ 过 {n} 条（上限 {per_hour}/小时）—— 稍后再来", 11)
     if per_day > 0:
-        used = 0
-        if f.exists():
-            used = sum(1 for l in f.read_text(encoding="utf-8").splitlines()
-                       if l.startswith(today) and "mentioned" in l)
-        if used >= per_day:
-            die(f"闸⑥：今天已经 @ 过 {used} 条（上限 {per_day}）—— 不再发", 11)
-
-    # 闸⑦：冷却（新号防高强度）—— 两次 @ 至少隔 cooldown_hours 小时
-    cd = float(cfg.get("cooldown_hours") or 0)
-    log = d / "mention-log.jsonl"
-    if cd > 0 and log.exists():
-        last = None
-        for line in log.read_text(encoding="utf-8").splitlines():
-            try:
-                last = json.loads(line).get("ts")
-            except Exception:  # noqa: BLE001
-                continue
-        if last:
-            try:
-                ago = (datetime.now() - datetime.fromisoformat(last)).total_seconds() / 3600
-                if ago < cd:
-                    die(f"闸⑦：上次 @ 才过去 {ago:.1f} 小时（冷却 {cd}h）—— 新号别高强度，稍后再来", 12)
-            except Exception:  # noqa: BLE001
-                pass
+        n = sum(1 for r in log if _ago_h(r) < 24)
+        if n >= per_day:
+            die(f"闸⑥：最近 24 小时已 @ 过 {n} 条（上限 {per_day}/天）—— 不再发", 11)
 
     cookie = load_cookie()
     raw = cookie_path().read_text(encoding="utf-8")
@@ -600,6 +634,12 @@ def main():
     s.add_argument("--bv", required=True)
     s.add_argument("--rpid", required=True)
     s.set_defaults(fn=cmd_check_reply)
+
+    s = sub.add_parser("rate")
+    s.add_argument("--per-round", dest="per_round", type=int)
+    s.add_argument("--per-hour", dest="per_hour", type=int)
+    s.add_argument("--per-day", dest="per_day", type=int)
+    s.set_defaults(fn=cmd_rate)
 
     s = sub.add_parser("feedback")
     s.add_argument("--topic", required=True)
