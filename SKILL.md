@@ -40,6 +40,7 @@ python3 $R feedback --topic "主题" --signal like --bv BV1xxx --score 4
 python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
 python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
 python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
+python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
 ```
 
 - cookie 文件：`~/.openclaw/secrets/bilibili-cookies.txt`（小号；失效就找本人重新导出）
@@ -71,6 +72,7 @@ python3 $R notify --new-only                         # 谁找我：@我的 / 回
 2. 命令行必须显式加 `--yes`（**默认干跑**，只打印将要发的内容）
 3. 同一 BV 只发一次（查 `seen.md` 的 `mentioned` 记录）
 4. 正文 ≤ 150 字，且必须包含 `@昵称`
+5. **发完自检**：自动用**匿名请求**回查这条评论可不可见（阿瓦隆拦了就记一行；别人看不到 = 没真发出去）
 
 正文默认用 `config.json` 里的 `template`；**模板里不许出现档案、项目名、私人信息**。
 撤除：`/x/v2/reply/del`（带 `csrf`）可删，实测 code=0。

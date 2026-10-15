@@ -300,9 +300,17 @@ def cmd_reply(a):
     if res.get("code") != 0:
         die(f"发评论被拒：code={res.get('code')} msg={res.get('message')}", 9)
     rpid = ((res.get("data") or {}).get("rpid_str") or (res.get("data") or {}).get("rpid"))
+    # 发完自检：匿名看不看得到（阿瓦隆拦了就记一行，别人看得到才算真发出去）
+    time.sleep(3)
+    vis = None
+    try:
+        vis = visible_anon(a.bv, str(rpid), pages=2)
+    except Exception:  # noqa: BLE001
+        vis = None
+    note = {True: "公开可见", False: "匿名不可见（可能被拦/审核中）", None: "未验证"}[vis]
     with f.open("a", encoding="utf-8") as fh:
-        fh.write(f"{time.strftime('%Y-%m-%d')} | bilibili | {a.bv} | mentioned | {title}\n")
-    out.update({"posted": True, "rpid": rpid})
+        fh.write(f"{time.strftime('%Y-%m-%d')} | bilibili | {a.bv} | mentioned | {title} | rpid={rpid} | {note}\n")
+    out.update({"posted": True, "rpid": rpid, "visible_anon": vis, "verdict": note})
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
@@ -359,6 +367,53 @@ def cmd_notify(a):
 
 def radar_unread(cookie):
     return get(f"{API}/x/msgfeed/unread", cookie).get("data") or {}
+
+
+def anon_get(url: str):
+    """匿名 GET（不带 cookie）—— 用来验证“别人能不能看到”。"""
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA,
+        "Referer": "https://www.bilibili.com/",
+        "Accept": "application/json, text/plain, */*",
+    })
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.load(r)
+
+
+def visible_anon(bv: str, rpid: str, pages: int = 3):
+    """别人（未登录）能不能看到这条评论。返回 True/False/None(=查不准)。
+
+    ⚠️ 楼中楼不算 —— 只查顶层（阿瓦隆拦楼中楼时接口对所有人都返回 0，查不出真假）。
+    """
+    import hashlib as _h
+    _, mix = wbi_keys(load_cookie())
+    aid = get(f"{API}/x/web-interface/view?bvid={bv}", load_cookie())["data"]["aid"]
+    found = False
+    for mode in (2, 3):
+        nxt = 0
+        for _ in range(pages):
+            q = wbi_sign({"type": 1, "oid": aid, "mode": mode, "next": nxt, "ps": 20}, mix)
+            try:
+                d = anon_get(f"{API}/x/v2/reply/wbi/main?{q}").get("data") or {}
+            except Exception:  # noqa: BLE001
+                return None
+            for x in (d.get("replies") or []):
+                if str(x.get("rpid")) == str(rpid):
+                    found = True
+            nxt = (d.get("cursor") or {}).get("next") or 0
+            if not nxt:
+                break
+        if found:
+            return True
+    return False
+
+
+def cmd_check_reply(a):
+    v = visible_anon(a.bv, a.rpid)
+    verdict = {True: "公开可见 ✅", False: "匿名看不到 ⚠️（可能被阿瓦隆拦/审核中，主号自己能看到不代表公开）",
+               None: "查询失败（网络/风控）"}[v]
+    print(json.dumps({"bvid": a.bv, "rpid": a.rpid, "visible_anon": v, "verdict": verdict},
+                     ensure_ascii=False, indent=2))
 
 
 def cmd_feedback(a):
@@ -439,6 +494,11 @@ def main():
     s.add_argument("--text", help="评论正文（默认「@昵称 这个值得看一眼」）")
     s.add_argument("--yes", action="store_true", help="真正发出（默认干跑，只打印会发什么）")
     s.set_defaults(fn=cmd_reply)
+
+    s = sub.add_parser("check-reply")
+    s.add_argument("--bv", required=True)
+    s.add_argument("--rpid", required=True)
+    s.set_defaults(fn=cmd_check_reply)
 
     s = sub.add_parser("feedback")
     s.add_argument("--topic", required=True)
