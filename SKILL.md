@@ -107,5 +107,8 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 定时（cron）
 
-按 `openclaw cron` 配置，建议：每天 **08:00**（夜间谷时，醒来看），独立 session + 便宜模型，`delivery.mode=announce`。
+按 `openclaw cron` 配置，建议：独立 session + 便宜模型 + `delivery.mode=announce`（正常回 NO_REPLY = 静默，异常才开口）。
+模式用 `scripts/apply-cron.py` 一键切：
+- **all**：全天每小时（`0 * * * *`）
+- **valley（梁文谷）**：只在 DeepSeek 谷时的小时跑（`0 0-8,12,13,18-23 * * *`）—— 工作日 9-12/14-18 是高峰，其余含周末都是谷时
 创建/修改 cron 的投递参数按你的渠道配置解析（微信类渠道通常要 `channel` + `to` + `accountId`）。

@@ -43,6 +43,16 @@ cp templates/charter.md templates/profile.md ~/.openclaw/workspace/interests/
 #    独立 session + 便宜模型 + 工具白名单 read/write/exec
 ```
 
+## 调度：all / 梁文谷
+
+```bash
+python3 scripts/apply-cron.py          # 看当前模式
+python3 scripts/apply-cron.py all      # 全天每小时
+python3 scripts/apply-cron.py valley   # 梁文谷：只在 DeepSeek 谷时的小时跑
+```
+
+谷时口径（DeepSeek 官方）：**工作日 9:00-12:00、14:00-18:00 是高峰，其余（含整个周末）都是谷时**。
+
 ## 命令速查
 
 ```bash
