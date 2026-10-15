@@ -274,6 +274,10 @@ def cmd_reply(a):
         text = f"@{name} {text}"
     if len(text) > 150:
         die(f"闸④：正文 {len(text)} 字 > 150 字上限", 7)
+    # 闸⑤：敏感词表（config.json 的 mention.forbid）—— 档案/项目名/路径一旦漏进来就拒发
+    forbid = [w for w in (cfg.get("forbid") or []) if w and w in text]
+    if forbid:
+        die(f"闸⑤：正文命中敏感词 {forbid} —— 拒绝发（公开评论里不许出现这些）", 10)
 
     v = get(f"{API}/x/web-interface/view?bvid={a.bv}", cookie)["data"]
     aid, title = v["aid"], v.get("title")
