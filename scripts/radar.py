@@ -561,10 +561,14 @@ def cmd_feedback(a):
         w = {"_note": "学习只来自 👍/👎 反馈 + 本人明写的兴趣线", "topics": {}}
     w.setdefault("topics", {})
     t = w["topics"].setdefault(a.topic, {"like": 0, "skip": 0, "weight": 0.0, "last": None})
-    t[a.signal] = int(t.get(a.signal, 0)) + 1
+    if a.signal in ("like", "skip"):
+        t[a.signal] = int(t.get(a.signal, 0)) + 1
+    # signal=note：只留证据，不动权重（例如“他只是问了一句”）
     n = t["like"] + t["skip"]
     t["weight"] = round(t["like"] / n, 3) if n else 0.0
     t["last"] = time.strftime("%Y-%m-%d")
+    if a.note:
+        t["last_note"] = a.note
     if a.score is not None:
         t["last_score"] = a.score
     w["updated"] = time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -643,7 +647,8 @@ def main():
 
     s = sub.add_parser("feedback")
     s.add_argument("--topic", required=True)
-    s.add_argument("--signal", required=True, choices=["like", "skip"])
+    s.add_argument("--signal", required=True, choices=["like", "skip", "note"],
+                   help="like=有用 / skip=没用 / note=只留证据不动权重")
     s.add_argument("--bv")
     s.add_argument("--score", type=int)
     s.add_argument("--note")

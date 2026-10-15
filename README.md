@@ -62,7 +62,7 @@ python3 $R search --kw "关键词" --num 20 --days 7    # 搜（order: pubdate|c
 python3 $R sub BV1xxxxxxxxx                          # 字幕全文；无字幕打印 NO_SUBTITLE
 python3 $R seen check BV1xxx                         # SEEN / NEW
 python3 $R seen add 2026-10-15 BV1xxx keep 标题       # 记判重
-python3 $R feedback --topic "主题" --signal like --bv BV1xxx --score 4
+python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python3 $R stats                                     # 权重汇总 + 已看条数
 ```
 

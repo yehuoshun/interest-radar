@@ -37,7 +37,7 @@ python3 $R search --kw "关键词" --num 20 --days 7   # 搜（order: pubdate|cl
 python3 $R sub BV1xxxxxxxxx                         # 字幕全文；无字幕打印 NO_SUBTITLE
 python3 $R seen check BV1xxx                        # SEEN / NEW
 python3 $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
-python3 $R feedback --topic "主题" --signal like --bv BV1xxx --score 4
+python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
 python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
 python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
@@ -49,6 +49,7 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 一轮流程（严格按序）
 
+0. **先读反馈**：`notify --new-only` → 主号在我评论下的**每一条回复**都用 `feedback` 记一条（like/skip/note），**一条都不许丢**；别人的回复不理也不记。
 1. **`check`**：cookie 失效 → 直接停，**别硬跑**，报「cookie 失效，需要重新导出」。
 2. 读 `profile.md`：兴趣线 0 条 → 只按「明确不要的」过滤，**不自造兴趣**。
 3. **广撒网**：每条兴趣线搜 1-2 轮（主题 + 邻域各一次），`--days 7 --order pubdate`。
