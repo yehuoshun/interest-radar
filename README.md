@@ -64,6 +64,12 @@ python3 $R seen check BV1xxx                         # SEEN / NEW
 python3 $R seen add 2026-10-15 BV1xxx keep 标题       # 记判重
 python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python3 $R stats                                     # 权重汇总 + 已看条数
+python3 $R reply --bv BV1xxx [--text "@昵称 …"]        # 评论 @ 主号（默认干跑，--yes 真发）
+python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的
+python3 $R dm --new-only                             # 私信：新于水位线的（只读不回）
+python3 $R dynamic --text "…" [--yes]                 # 发动态（≤200 字，默认干跑）
+python3 $R dynamic-del --dyn-id 1260… [--yes]         # 删掉发错的动态
+python3 $R msg --mid 239028467 --text "…" [--yes]     # 私信（只准发 allow_mid 白名单）
 ```
 
 环境变量：`INTERESTS_DIR`（状态目录）、`BILI_COOKIE_FILE`（cookie 文件）。
@@ -80,7 +86,7 @@ templates/charter.md  章程模板：判据、四维打分、红线
 ## 红线
 
 - **兴趣档案不出本机**：不进任何公开平台、不进评论、不进外部日志。
-- **写操作分档**（2026-10-19 老板放开发动态/私信）：闸全在代码里——`enabled` 开关、`--yes`、敏感词、频控、私信白名单、连续失败自动关。cookie 能写，但口径不变：只 @ 主号、不发档案内容。
+- **写操作分档**（2026-10-19 老板放开发动态/私信）：闸全在代码里——`enabled` 开关、`--yes`、敏感词、频控（现为不限，可配）、私信白名单、连续失败自动关。cookie 能写，但口径不变：只 @ 主号、只私信白名单、不发档案内容。
 - 不确定的事**不编**，宁可写「没查到」。
 - 拿**小号**跑，别拿主号。
 
