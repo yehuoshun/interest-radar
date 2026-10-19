@@ -674,6 +674,61 @@ def cmd_msg(a):
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
+def cmd_dm(a):
+    """读私信正文（只读！不发送、不回、不标记已读）。
+
+    默认读 config.json 的 mention.mid（主号）那条会话；--new-only 用时间水位只列新的
+    （水位落 dm-state.json）。
+    实测 2026-10-19：`svr_sync/fetch_session_msgs` 只要 cookie 就能拿到正文（不用 app 签名）——
+    与旧文档「私信正文读不到」不符，已更正。
+    """
+    cfg = read_config()
+    mid = int(a.mid or (cfg.get("mention") or {}).get("mid") or 0)
+    if not mid:
+        die("不知道读谁的会话：给 --mid，或在 config.json 的 mention.mid 里配主号 mid", 7)
+    cookie = load_cookie()
+    me = int((get(f"{API}/x/web-interface/nav", cookie)["data"].get("mid")) or 0)
+    url = ("https://api.vc.bilibili.com/svr_sync/v1/svr_sync/fetch_session_msgs"
+           f"?talker_id={mid}&session_type=1&size={int(a.size)}&build=0&mobi_app=web")
+    msgs = ((get(url, cookie).get("data") or {}).get("messages") or [])
+
+    d = state_dir()
+    sf = d / "dm-state.json"
+    try:
+        state = json.loads(sf.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        state = {}
+    last = int((state.get(str(mid)) or {}).get("last_ts") or 0)
+
+    out = []
+    max_ts = last
+    for m in msgs:
+        ts = int(m.get("timestamp") or 0)
+        max_ts = max(max_ts, ts)
+        if a.new_only and ts <= last:
+            continue
+        text = m.get("content")
+        try:
+            text = json.loads(text).get("content", text)
+        except Exception:  # noqa: BLE001
+            pass
+        out.append({"ts": datetime.fromtimestamp(ts).isoformat(timespec="seconds"),
+                    "ts_raw": ts,
+                    "from": "主号" if int(m.get("sender_uid") or 0) == mid else "我",
+                    "from_mid": m.get("sender_uid"),
+                    "text": str(text)})
+    out.sort(key=lambda x: x["ts_raw"])
+    if not a.new_only or max_ts > last:
+        state[str(mid)] = {"last_ts": max_ts, "last_read": datetime.now().isoformat(timespec="seconds")}
+        try:
+            sf.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            pass
+    print(json.dumps({"talker_id": mid, "me": me, "new_only": bool(a.new_only),
+                      "count": len(out), "water_level": max_ts, "messages": out},
+                     ensure_ascii=False, indent=2))
+
+
 def cmd_notify(a):
     """谁能找到我：读自己的 B站 通知（@我的 / 回复我的 / 未读计数）。
 
@@ -907,6 +962,13 @@ def main():
     s.add_argument("--text", required=True, help="私信正文（≤200 字）")
     s.add_argument("--yes", action="store_true", help="真正发出（默认干跑）")
     s.set_defaults(fn=cmd_msg)
+
+    s = sub.add_parser("dm")
+    s.add_argument("--mid", help="对方 mid（默认 config.json 的 mention.mid = 主号）")
+    s.add_argument("--size", type=int, default=20, help="拉多少条（默认 20）")
+    s.add_argument("--new-only", dest="new_only", action="store_true",
+                   help="只列时间水位之后的新消息")
+    s.set_defaults(fn=cmd_dm)
 
     s = sub.add_parser("notify")
     s.add_argument("--new-only", dest="new_only", action="store_true",

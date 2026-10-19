@@ -42,6 +42,7 @@ python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score
 python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
 python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
 python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
+python3 $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python3 $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
 python3 $R dynamic-del --dyn-id 1260… --yes          # 删掉发错的动态
 python3 $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_mid 白名单）
@@ -66,7 +67,7 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 7. **判重**：`seen check`，SEEN 的跳过；每条处理完 `seen add`。
 8. **写报告** `out/<YYYY-MM-DD>.md`（格式见下）。
 9. **推送**：只推总分最高的 **0-3 条**到你的渠道（按渠道配置解析 target）。**0 条就别推、别凑数**。
-10. **（可选）谁找我**：`notify --new-only`，有新 @/回复就在推送里附一行（只读元数据；私信只报未读计数，不读正文）。
+10. **（可选）谁找我**：`notify --new-only`，有新 @/回复就在推送里附一行；`dm --new-only` 看私信里有没有新话（**只读不回**）。
 11. **结尾**：报告后加一行「本轮扫了 N 条、读了 M 条字幕、留下 K 条」。
 
 ## 评论与 @（**默认关**）
@@ -129,7 +130,6 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 - 别自己改 `profile.md`，那是本人的地盘
 
 ## 定时（cron）
-
 按 `openclaw cron` 配置，建议：独立 session + 便宜模型 + `delivery.mode=announce`（正常回 NO_REPLY = 静默，异常才开口）。
 模式用 `scripts/apply-cron.py` 一键切：
 - **all**：全天每小时（`0 * * * *`）
