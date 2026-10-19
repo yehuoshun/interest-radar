@@ -15,7 +15,10 @@ radar.py —— 兴趣雷达的"手脚"（确定性那一半：取数、判重�
 约定：
   · cookie 文件：~/.openclaw/secrets/bilibili-cookies.txt（可用 BILI_COOKIE_FILE 覆盖）
   · 状态目录 ：<workspace>/interests（可用 INTERESTS_DIR 覆盖）
-  · 只读不写：本脚本不提供任何发评论/发动态的接口（红线）
+  · 写操作全部默认干跑，必须显式 --yes；开关/频控/敏感词/白名单闸都在 config.json
+    - reply   在视频评论区 @ 主号（闸见 cmd_reply）
+    - dynamic 发一条动态（闸见 cmd_dynamic，2026-10-19 老板放开）
+    - msg     私信白名单里的 mid（闸见 cmd_msg，2026-10-19 老板放开）
 """
 import argparse
 import hashlib
@@ -285,6 +288,110 @@ def csrf_from_cookie(raw: str) -> str:
     return m.group(1) if m else ""
 
 
+def post_json(url: str, body: dict, cookie: str, referer: str, tries: int = 2):
+    """JSON body 的 POST（发动态用这个，form 编码会 -400）。**有副作用**。"""
+    data = json.dumps(body, ensure_ascii=False).encode()
+    last = None
+    for i in range(tries):
+        req = urllib.request.Request(url, data=data, headers={
+            "User-Agent": UA, "Referer": referer, "Cookie": cookie,
+            "Content-Type": "application/json",
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return json.load(r)
+        except Exception as e:  # noqa: BLE001
+            last = f"{type(e).__name__}: {e}"
+            time.sleep(1.0 * (i + 1))
+    die(f"POST(JSON) 失败：{url} → {last}", 8)
+
+
+def post_form(url: str, fields: dict, cookie: str, referer: str, tries: int = 2):
+    """带 csrf 的表单 POST，返回 json。**有副作用**，只给写操作调用。"""
+    body = urllib.parse.urlencode(fields).encode()
+    last = None
+    for i in range(tries):
+        req = urllib.request.Request(url, data=body, headers={
+            "User-Agent": UA, "Referer": referer, "Cookie": cookie,
+            "Content-Type": "application/x-www-form-urlencoded",
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return json.load(r)
+        except Exception as e:  # noqa: BLE001
+            last = f"{type(e).__name__}: {e}"
+            time.sleep(1.0 * (i + 1))
+    die(f"POST 失败：{url} → {last}", 8)
+
+
+def write_log(d: Path):
+    """读写操作日志（write-log.jsonl，带 kind/时间戳），频控靠它。"""
+    out = []
+    f = d / "write-log.jsonl"
+    if f.exists():
+        for line in f.read_text(encoding="utf-8").splitlines():
+            try:
+                out.append(json.loads(line))
+            except Exception:  # noqa: BLE001
+                continue
+    return out
+
+
+def _write_gate(kind: str, rate: bool = True) -> dict:
+    """通用写闸：① 该 kind 的 enabled 必须 true；② 频控（per_hour/per_day，按 kind 各算）。
+
+    返回 config.write[kind] 那一段（调用方还要做正文/白名单/敏感词校验）。
+    rate=False 用于「删除类」操作（删不该被发帖频控拦住）。
+    """
+    seg = ((read_config().get("write") or {}).get(kind) or {})
+    if not seg.get("enabled"):
+        die(f"闸①：config.json 的 write.{kind}.enabled 不是 true —— 拒绝发送", 4)
+    if not rate:
+        return seg
+    d = state_dir()
+    log = [r for r in write_log(d) if r.get("kind") == kind]
+    per_hour = int(seg.get("per_hour") or 0)
+    per_day = int(seg.get("per_day") or 0)
+    if per_hour > 0 and sum(1 for r in log if _ago_h(r) < 1) >= per_hour:
+        die(f"闸⑤：{kind} 最近 1 小时已发够（上限 {per_hour}/小时）—— 稍后再来", 11)
+    if per_day > 0 and sum(1 for r in log if _ago_h(r) < 24) >= per_day:
+        die(f"闸⑤：{kind} 最近 24 小时已发够（上限 {per_day}/天）—— 不再发", 11)
+    return seg
+
+
+def _write_fail(d: Path, kind: str) -> int:
+    """记一次写失败，返回今日累计；连续 3 次 → 自动关掉该 kind 的开关（防账号被爆）。"""
+    f = d / f"write-fails-{kind}.json"
+    today = time.strftime("%Y-%m-%d")
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        data = {}
+    if data.get("date") != today:
+        data = {"date": today, "count": 0}
+    data["count"] = int(data.get("count", 0)) + 1
+    try:
+        f.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    if data["count"] >= 3:
+        cf = d / "config.json"
+        try:
+            cfgall = json.loads(cf.read_text(encoding="utf-8"))
+            cfgall.setdefault("write", {}).setdefault(kind, {})["enabled"] = False
+            cf.write_text(json.dumps(cfall, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"⚠️ {kind} 连续 3 次失败 → 已自动关掉 write.{kind}.enabled（防账号被爆），等本人来看",
+                  file=sys.stderr)
+        except Exception:  # noqa: BLE001
+            pass
+    return data["count"]
+
+
+def _record_write(d: Path, rec: dict):
+    with (d / "write-log.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
 def mention_log(d: Path):
     """读 mentions 发出记录（带时间戳）。"""
     out = []
@@ -353,7 +460,9 @@ def cmd_reply(a):
 
     d = state_dir()
     f = d / "seen.md"
-    if f.exists() and any(a.bv in l and "mentioned" in l for l in f.read_text(encoding="utf-8").splitlines()):
+    # 闸③：同一视频只发一条「主动 @ 推荐」；楼中楼回复（--reply-to）不受此限
+    if (not getattr(a, "reply_to", None)) and f.exists() and any(
+            a.bv in l and "mentioned" in l for l in f.read_text(encoding="utf-8").splitlines()):
         die(f"闸③：{a.bv} 已经 @ 过了 —— 同一视频只发一次", 5)
 
     # 闸⑥：滚动窗口频控（都在 config.json 的 mention 里，0 = 不限）—— 新号防高强度
@@ -394,12 +503,14 @@ def cmd_reply(a):
         print("（干跑：要真发请加 --yes）", file=sys.stderr)
         return
 
-    body = urllib.parse.urlencode({
-        "type": 1, "oid": aid, "message": text, "csrf": jct,
-        "plat": 1, "ordering": "heat",
-    }).encode()
-    req = urllib.request.Request(f"{API}/x/v2/reply/add", data=body, headers={
-        "User-Agent": UA, "Referer": f"https://www.bilibili.com/video/{a.bv}",
+    fields = {"type": 1, "oid": aid, "message": text, "csrf": jct,
+              "plat": 1, "ordering": "heat"}
+    # 楼中楼（子回复）：带上 root/parent 才是「回复某条评论」，否则 B站 当新顶层评论
+    if getattr(a, "reply_to", None):
+        fields["root"] = str(a.reply_to)
+        fields["parent"] = str(a.reply_to)
+    body = urllib.parse.urlencode(fields).encode()
+    req = urllib.request.Request(f"{API}/x/v2/reply/add", data=body, headers={        "User-Agent": UA, "Referer": f"https://www.bilibili.com/video/{a.bv}",
         "Cookie": cookie, "Content-Type": "application/x-www-form-urlencoded",
     })
     try:
@@ -425,17 +536,141 @@ def cmd_reply(a):
     time.sleep(3)
     vis = None
     try:
-        vis = visible_anon(a.bv, str(rpid), pages=2)
+        # ⚠️ visible_anon 只查顶层评论；楼中楼查不准 → 标 None（未验证）
+        if not getattr(a, "reply_to", None):
+            vis = visible_anon(a.bv, str(rpid), pages=2)
     except Exception:  # noqa: BLE001
         vis = None
     note = {True: "公开可见", False: "匿名不可见（可能被拦/审核中）", None: "未验证"}[vis]
+    # 楼中楼回复记 `replied`（不含 mentioned），不触发阰③「同一视频只发一条」——
+    # 那道闸只管「主动 @ 推荐」，而回复主号 @ 我的指令是另一类行为。
+    kind = "replied" if getattr(a, "reply_to", None) else "mentioned"
     with f.open("a", encoding="utf-8") as fh:
-        fh.write(f"{time.strftime('%Y-%m-%d')} | bilibili | {a.bv} | mentioned | {title} | rpid={rpid} | {note}\n")
+        extra = f" | reply_to={a.reply_to}" if getattr(a, "reply_to", None) else ""
+        fh.write(f"{time.strftime('%Y-%m-%d')} | bilibili | {a.bv} | {kind} | {title} | rpid={rpid}{extra} | {note}\n")
     with (d / "mention-log.jsonl").open("a", encoding="utf-8") as fh:
         fh.write(json.dumps({"ts": datetime.now().isoformat(timespec="seconds"),
-                             "bv": a.bv, "rpid": rpid, "visible_anon": vis},
+                             "bv": a.bv, "rpid": rpid, "visible_anon": vis,
+                             "kind": kind,
+                             **({"reply_to": str(a.reply_to)} if getattr(a, "reply_to", None) else {})},
                             ensure_ascii=False) + "\n")
     out.update({"posted": True, "rpid": rpid, "visible_anon": vis, "verdict": note})
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
+def cmd_dynamic(a):
+    """发一条动态（默认干跑；真发要 --yes + config 开关）。
+
+    闸：① write.dynamic.enabled ② 显式 --yes ③ 非空且 ≤ 200 字
+        ④ 敏感词（write.dynamic.forbid）fail-closed ⑤ 频控 ⑥ 连续失败 3 次自动关
+    """
+    seg = _write_gate("dynamic")
+    text = (a.text or "").strip()
+    if not text:
+        die("闸③：正文为空 —— 拒绝发", 7)
+    if len(text) > 200:
+        die(f"闸③：正文 {len(text)} 字 > 200 字上限", 7)
+    forbid = [w for w in (seg.get("forbid") or []) if w and w in text]
+    if forbid:
+        die(f"闸④：正文命中敏感词 {forbid} —— 拒绝发（公开动态里不许出现这些）", 10)
+    cookie = load_cookie()
+    jct = csrf_from_cookie(cookie_path().read_text(encoding="utf-8"))
+    if not jct:
+        die("cookie 里没有 bili_jct（csrf）—— 没法发动态", 6)
+    out = {"kind": "dynamic", "text": text, "chars": len(text), "dry_run": not a.yes}
+    if not a.yes:
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        print("（干跑：要真发请加 --yes）", file=sys.stderr)
+        return
+    # 实测（2026-10-19）：本接口只吃 JSON body `{"dyn_req":{...}}`；
+    # 用 application/x-www-form-urlencoded 会 -400 请求错误，raw dyn_req 会 4100001 参数错误。
+    dyn_req = {"content": {"contents": [{"raw_text": text, "type": 1, "biz_id": ""}]}, "scene": 1}
+    res = post_json(f"{API}/x/dynamic/feed/create/dyn?platform=web&csrf={jct}",
+                    {"dyn_req": dyn_req}, cookie, "https://www.bilibili.com/")
+    if res.get("code") != 0:
+        n = _write_fail(state_dir(), "dynamic")
+        die(f"发动态被拒：code={res.get('code')} msg={res.get('message')}（今日失败 {n} 次）", 9)
+    d0 = res.get("data") or {}
+    dyn_id = d0.get("dyn_id_str") or d0.get("dyn_id")
+    _record_write(state_dir(), {"ts": datetime.now().isoformat(timespec="seconds"),
+                                "kind": "dynamic", "dyn_id": str(dyn_id), "chars": len(text)})
+    out.update({"posted": True, "dyn_id": str(dyn_id),
+                "url": f"https://t.bilibili.com/{dyn_id}"})
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
+def cmd_dynamic_del(a):
+    """删一条自己发的动态（发错了能收回来）。闸同 cmd_dynamic（开关 + --yes），不受发帖频控限制。"""
+    _write_gate("dynamic", rate=False)
+    if not str(a.dyn_id).isdigit():
+        die("--dyn-id 必须是数字动态 id", 7)
+    cookie = load_cookie()
+    jct = csrf_from_cookie(cookie_path().read_text(encoding="utf-8"))
+    out = {"kind": "dynamic-del", "dyn_id": str(a.dyn_id), "dry_run": not a.yes}
+    if not a.yes:
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        print("（干跑：要真删请加 --yes）", file=sys.stderr)
+        return
+    res = post_form("https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/rm_dynamic",
+                    {"dynamic_id": str(a.dyn_id), "csrf": jct}, cookie, "https://t.bilibili.com/")
+    if res.get("code") != 0:
+        die(f"删动态被拒：code={res.get('code')} msg={res.get('message')}", 9)
+    _record_write(state_dir(), {"ts": datetime.now().isoformat(timespec="seconds"),
+                                "kind": "dynamic-del", "dyn_id": str(a.dyn_id)})
+    out["deleted"] = True
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
+def cmd_msg(a):
+    """给白名单里的 mid 发私信（默认只有主号）。默认干跑；真发要 --yes + config 开关。
+
+    闸：① write.message.enabled ② 显式 --yes ③ 收件人 ∈ allow_mid（硬闸，防私信陌生人）
+        ④ 非空且 ≤ 200 字 ⑤ 敏感词 ⑥ 频控 ⑦ 连续失败 3 次自动关
+    """
+    seg = _write_gate("message")
+    allow = [int(m) for m in (seg.get("allow_mid") or []) if str(m).isdigit()]
+    if not str(a.mid).isdigit():
+        die("--mid 必须是数字 uid", 7)
+    mid = int(a.mid)
+    if mid not in allow:
+        die(f"闸③：{mid} 不在 allow_mid 白名单 {allow} —— 拒绝私信（只准发给白名单里的人）", 12)
+    text = (a.text or "").strip()
+    if not text:
+        die("闸④：正文为空 —— 拒绝发", 7)
+    if len(text) > 200:
+        die(f"闸④：正文 {len(text)} 字 > 200 字上限", 7)
+    forbid = [w for w in (seg.get("forbid") or []) if w and w in text]
+    if forbid:
+        die(f"闸⑤：正文命中敏感词 {forbid} —— 拒绝发", 10)
+    cookie = load_cookie()
+    jct = csrf_from_cookie(cookie_path().read_text(encoding="utf-8"))
+    if not jct:
+        die("cookie 里没有 bili_jct（csrf）—— 没法发私信", 6)
+    nav = get(f"{API}/x/web-interface/nav", cookie)["data"]
+    sender = int(nav.get("mid") or 0)
+    out = {"kind": "message", "to_mid": mid, "text": text, "chars": len(text), "dry_run": not a.yes}
+    if not a.yes:
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        print("（干跑：要真发请加 --yes）", file=sys.stderr)
+        return
+    dev = "".join(_random.choice("0123456789ABCDEF") for _ in range(8))
+    dev_id = f"{dev}-{dev[:4]}-{dev[4:]}-{dev[:4]}-{dev + dev[:4]}"[:36]
+    fields = {
+        "msg[sender_uid]": str(sender), "msg[receiver_id]": str(mid),
+        "msg[receiver_type]": "1", "msg[msg_type]": "1", "msg[dev_id]": dev_id,
+        "msg[timestamp]": str(int(time.time())),
+        "msg[content]": json.dumps({"content": text}, ensure_ascii=False),
+        "csrf": jct, "csrf_token": jct, "build": "0", "mobi_app": "web", "platform": "web",
+    }
+    res = post_form("https://api.vc.bilibili.com/web_im/v1/web_im/send_msg", fields, cookie,
+                    "https://message.bilibili.com/")
+    if res.get("code") != 0:
+        n = _write_fail(state_dir(), "message")
+        die(f"发私信被拒：code={res.get('code')} msg={res.get('message')}（今日失败 {n} 次）", 9)
+    mk = (res.get("data") or {}).get("msg_key")
+    _record_write(state_dir(), {"ts": datetime.now().isoformat(timespec="seconds"),
+                                "kind": "message", "to_mid": mid, "msg_key": str(mk)})
+    out.update({"posted": True, "msg_key": str(mk), "sender_mid": sender})
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
@@ -470,7 +705,9 @@ def cmd_notify(a):
                     "from": u.get("nickname"),
                     "mid": u.get("mid"),
                     "time": time.strftime("%Y-%m-%d %H:%M", time.localtime(it.get("at_time") or it.get("time") or 0)),
-                    "text": c.get("message") or c.get("title") or "",
+                    # @我的正文在 item.source_content（与 reply 同源）；content.message 常为空
+                    "text": item.get("source_content") or c.get("message") or c.get("title") or "",
+                    "rpid": item.get("source_id"),   # 他那条评论的 rpid → 可用 --reply-to 回楼中楼
                     "title": item.get("title"),
                     "uri": item.get("uri"),
                 })
@@ -631,6 +868,7 @@ def main():
     s = sub.add_parser("reply")
     s.add_argument("--bv", required=True)
     s.add_argument("--text", help="评论正文（默认「@昵称 这个值得看一眼」）")
+    s.add_argument("--reply-to", dest="reply_to", help="楼中楼：回复某条评论的 rpid（带上 root/parent）")
     s.add_argument("--yes", action="store_true", help="真正发出（默认干跑，只打印会发什么）")
     s.set_defaults(fn=cmd_reply)
 
@@ -653,6 +891,22 @@ def main():
     s.add_argument("--score", type=int)
     s.add_argument("--note")
     s.set_defaults(fn=cmd_feedback)
+
+    s = sub.add_parser("dynamic")
+    s.add_argument("--text", required=True, help="动态正文（≤200 字）")
+    s.add_argument("--yes", action="store_true", help="真正发出（默认干跑）")
+    s.set_defaults(fn=cmd_dynamic)
+
+    s = sub.add_parser("dynamic-del")
+    s.add_argument("--dyn-id", dest="dyn_id", required=True, help="要删的动态 id（dyn_id_str）")
+    s.add_argument("--yes", action="store_true", help="真正删除（默认干跑）")
+    s.set_defaults(fn=cmd_dynamic_del)
+
+    s = sub.add_parser("msg")
+    s.add_argument("--mid", required=True, help="收件人 uid（必须在 config.write.message.allow_mid 白名单里）")
+    s.add_argument("--text", required=True, help="私信正文（≤200 字）")
+    s.add_argument("--yes", action="store_true", help="真正发出（默认干跑）")
+    s.set_defaults(fn=cmd_msg)
 
     s = sub.add_parser("notify")
     s.add_argument("--new-only", dest="new_only", action="store_true",
