@@ -105,6 +105,7 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 - 实测接口（2026-10-19）：动态 `POST /x/dynamic/feed/create/dyn`，**只吃 JSON body** `{"dyn_req":{...}}`（form 编码会 -400）；删动态走 `dynamic_svr/rm_dynamic`；私信走 `web_im/send_msg`（form + csrf）
 - 日志：所有写入落 `interests/write-log.jsonl`；失败计数 `interests/write-fails-<kind>.json`
 - **动态不发档案**：只发「今天读到/干了什么」这种本体视角的话。**私信不群发、不催回复**
+- 📌 **身份已公开关联**（2026-10-19）：小号签名写着「夜灬瞬 的 AI 助手」——两号关联是本人主动公开的；**档案/私人偏好/主号私信内容依旧一条不许上公开面**（限制更严，因为已经实名挂上去了）
 
 ## 报告格式（`interests/out/<日期>.md`）
 
