@@ -35,11 +35,14 @@ description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真�
 R=~/.openclaw/workspace/skills/interest-radar/scripts/radar.py
 python3 $R check                                    # 校验 cookie（读字幕必须登录）
 python3 $R search --kw "关键词" --num 20 --days 7   # 搜（order: pubdate|click|totalrank）
+python3 $R comment-check --bv BV1xxx          # 评论区快筛（@ 分享前跑：疑似 AI 水军提示，不拦截）
 python3 $R sub BV1xxxxxxxxx                         # 字幕全文；无字幕打印 NO_SUBTITLE
+python3 scripts/frames.py --bv BV1xxx [--strip]      # 抽帧看画面：默认 3x3 九宫格；--strip 硬字幕长图（需字幕轨）
 python3 $R seen check BV1xxx                        # SEEN / NEW
 python3 $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
 python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
+python3 $R engagement [--days N]                    # 活跃度评估：老板反馈/主动@/批准草稿/报告数 → 判读是否降频
 python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
 python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python3 $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
@@ -63,6 +66,12 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 4. **粗筛（先省 token）**：按标题/简介/时长/播放量砍掉明显不值的（入门教程、标题党、吵架场）→ **剩 ≤ 8 条候选**。
    ⚠️ **字幕预算：每轮不限**（2026-10-27 老板拍板取消，账号交 AI 运营；`config.json` → `budget.max_subtitles_per_round=0`）。粗筛仍做（省 token），但不再卡条数——够格就都读。
 5. **逐条 `sub` 读原文**（不看摘要下判断）。`NO_SUBTITLE` → 跳过（除非本人开了转写，那就另说）。
+   **深读抽帧（2026-10-27 新增）**：对读字幕后仍难判断、或无字幕但值得赌一眼的候选，跑
+   `python3 scripts/frames.py --bv BV1xxx`（默认 3x3 九宫格，每格 720px 带时间戳），
+   然后用 image 工具读九宫格补判断（画面本身就是一路证据：有没有干货、是不是标题党、制作质量）。
+   - **画面路是补充不是替代**：字幕能判断的就别抽帧（抽帧要下载，贵）；没字幕轨但有硬字幕的用 `--strip`（按字幕时刻采样拼长图，默认 480p/24 帧）
+   - 输出在 `interests/frames/frames_<BV>.png` + `.json`（每格时间点）
+   - ⚠️ 沙箱 ffmpeg 在线拉 CDN 流会段错误 → 脚本自动降级为**稀疏下载**：只拉 moov + 每个采样点的 GOP 段（Python Range 并发 + mp4 box 解析），实测 9 帧下载 ~6MB（全片 26MB）、44 分钟长视频 strip 下载 7.1MB（全片 55MB），抽帧结果与全片逐字节一致；稀疏方案不可用（非 faststart）才回退整片下载
 6. **四维打分**（各 0-5，写在报告里）：**相关性 / 新奇度 / 实操价值 / 新鲜度**
    - 总分 ≥ 阈值（默认 **≥ 14/20**）才留；**新奇度 ≤ 1 的直接砍**（只是重复他已知道的）。
 7. **判重**：`seen check`，SEEN 的跳过；每条处理完 `seen add`。
@@ -70,6 +79,24 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 9. **推送**：只推总分最高的 **0-3 条**到你的渠道（按渠道配置解析 target）。**0 条就别推、别凑数**。
 10. **（可选）谁找我**：`notify --new-only`，有新 @/回复就在推送里附一行；`dm --new-only` 看私信里有没有新话（**只读不回**）。
 11. **结尾**：报告后加一行「本轮扫了 N 条、读了 M 条字幕、留下 K 条」。
+
+## 请求层退避（2026-10-27 对齐 dsh-bili-whale）
+
+`radar.py` 的 `get/post_json/post_form` 统一退避策略，脚本不用管，知道行为就行：
+
+- **网络抖动** → 指数退避重试（1.5s → 3s → 6s … cap 60s）
+- **429 限流** → 尊重 `Retry-After`（最多等 5 分钟）
+- **风控（-412 / v_voucher）** → 立即 die 停手（不重试、不硬顶）
+- **业务 code≠0** → 不重试直接报错（重试无用）
+- **连续 3 次请求失败** → 熔断本轮（防止半死不活地烧时间），报告里记一行原因
+
+## 写冷却（2026-10-27 对齐 whale）
+
+两次**写操作**（@/评论/动态/私信/草稿批准）之间最短间隔 `write.cooldown_sec`（默认 120s）——查 write-log + mention-log 里最后一次真发的 ts，不足就 die。**删动态不冷却**（纠错优先）；干跑不查（没真写）。读请求不设全局间隔（每小时一轮密度低，已有退避/熔断覆盖）。
+
+## 触发时刻随机化（2026-10-27）
+
+雷达 cron 加 `staggerMs=120000`（0-2 分钟随机抖动）：每小时仍跑，但触发时刻不可预测（间隔 58-62 分钟）——破除「整点请求」的机器规律。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
 
 ## cookie 失效自救（扫码登录，2026-10-27 起）
 
@@ -99,6 +126,8 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 6. 频控（可配，`config.json` → `mention`）：**2026-10-27 老板拍板：每轮 ≤1、每小时 ≤1、每天不限**（雷达照旧每小时跑，但一小时只给主号一条，多了看不过来）· 硬闸仍 = 「同一视频只发一条」+ 总分 ≥ min_score。用 `radar.py rate` 看用量、改参数
 7. **发完自检**：自动用**匿名请求**回查这条评论可不可见（阿瓦隆拦了就记一行；别人看不到 = 没真发出去）
    - ⚠️ **visible_anon=false 不一定是永久隐藏**（2026-10-27 实证）：新号/新登录态发首评后会有一段**审核延迟**，当时查看不到、半小时后老板主号确认可见。判定「被拦」前至少隔 30min+ 复查一次。
+8. **评论区快筛（2026-10-27 轻量版）**：@ 分享前先跑 `comment-check --bv`（拉热评 top10 规则统计：数字昵称 / 昵称关键词「大肥鱼·肥鱼」/ AI 句式 / 同质文案）。疑似比例 ≥30% → **推送注明「⚠️ 评论区疑水军」或暂缓这次 @**，由本人定夺；不拦截、不误伤。
+   - `draft new` 另有硬闸：**对方昵称命中 name_keywords（大肥鱼/肥鱼等）= 疑似 DeepSeek 水军号 → 直接拒绝入稿**（老板 2026-10-27 指示）
 
 正文默认用 `config.json` 里的 `template`；**模板里不许出现档案、项目名、私人信息**。
 撤除：`/x/v2/reply/del`（带 `csrf`）可删，实测 code=0。
@@ -133,6 +162,38 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 - 红线不变：评论里**不许带**兴趣档案/项目名/路径/私人信息（forbid 兜底）；不吵架、不引战、不 @ 第三人
 - 账本：`write-log.jsonl`（kind=comment，含 bv/rpid/visible_anon）；发完自动匿名回查可见性
 - 用法：`radar.py comment --bv BV1xxx --text "…" --yes`（默认干跑）
+
+## 陌生人草稿审核（**2026-10-27 老板拍板试点**）
+
+红线从「永远不理别人」开一道带刹车的口子：**陌生人的提问类评论可回，但必须草稿 → 本人审批 → 才发**。
+
+流程（雷达每轮 `notify --new-only` 后）：
+
+1. 读通知，**只有提问类**（问视频内容 / 问雷达身份 / 明确找小号说话）才考虑；夸夸、无意义、引战、催更一律不理不记
+2. 写草稿：`python3 $R draft new --bv <视频> --rpid <那条评论rpid> --from "对方昵称" --text "<正文≤150字>"`
+   —— 只讲该视频本身，不带档案/项目/路径；敏感词命中直接拒入稿
+3. **草稿推送给本人审批，双通道**（2026-10-27 老板拍板：微信和 B站私信都行）：
+   - **微信**：单独推一条（不等日报），附审批命令
+   - **B站私信**：`radar.py msg --mid 239028467 --text "<草稿id> <摘要前80字> <视频链接> 批准：draft approve <id> --yes / 否决：discard <id>"`（≤200 字，正文精简）
+   - **审批接收**：老板微信回复 → agent 直接执行；老板 B站私信回复 → 下一轮 `dm --new-only` 读正文识别指令后执行
+4. 本人批准后才真发（楼中楼回原评论）；**24h 未审批自动作废**
+
+闸（全在代码里，`config.json` → `draft`）：`enabled`（试点默认开）· 正文 ≤150 + 敏感词 fail-closed · **12h ≤1 / 24h ≤2 频控**（可调）· 必须 `--yes` · 连续失败 3 次标 failed
+
+- 账本：`interests/drafts.jsonl`；状态：pending → approved(sent) / discarded / expired / failed
+- ⚠️ 这条试点就是「陌生人互动」的全部：不回私信陌生人、不主动评论陌生人、不 @ 第三人
+
+## 测试（2026-10-27 起自带）
+
+零第三方依赖，纯 unittest + mock（不碰真实账号/网络/凭据）：
+
+```bash
+cd <skill>/scripts && python3 -m unittest discover tests -v
+```
+
+35 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）。
+**新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
 
 ## 报告格式（`interests/out/<日期>.md`）
 
