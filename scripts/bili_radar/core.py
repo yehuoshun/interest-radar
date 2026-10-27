@@ -36,7 +36,10 @@ def state_dir() -> Path:
     for parent in here.parents:
         if (parent / "skills" / "interest-radar").is_dir():
             return parent / "interests"
-    return here.parents[3] / "interests"
+    # 兜底：裸 checkout（CI 就是这种，没有 skills/ 层）
+    # scripts/bili_radar/core.py → parents[1]=scripts → .parent=仓库根
+    # （原来是 parents[3]，包化后深了一层，会多跳一级到 <work>/interests —— 2026-10-27 CI 抓到）
+    return here.parents[1].parent / "interests"
 
 
 def load_cookie() -> str:
