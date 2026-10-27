@@ -49,7 +49,7 @@ python3 $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow
 python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
 ```
 
-- cookie 文件：`~/.openclaw/secrets/bilibili-cookies.txt`（小号；失效就找本人重新导出）
+- cookie 文件：`~/.openclaw/secrets/bilibili-cookies.txt`（小号；**失效先跑 `scripts/bili_qr_login.py` 扫码自救**，见下节，不用手动导出）
 - 脚本只做确定性的事；**判断一律由模型做**
 
 ## 一轮流程（严格按序）
@@ -69,6 +69,20 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 9. **推送**：只推总分最高的 **0-3 条**到你的渠道（按渠道配置解析 target）。**0 条就别推、别凑数**。
 10. **（可选）谁找我**：`notify --new-only`，有新 @/回复就在推送里附一行；`dm --new-only` 看私信里有没有新话（**只读不回**）。
 11. **结尾**：报告后加一行「本轮扫了 N 条、读了 M 条字幕、留下 K 条」。
+
+## cookie 失效自救（扫码登录，2026-10-27 起）
+
+`check` 报 `-101 账号未登录`（服务端判定登录态失效；文件在 ≠ 登录在）时：
+
+```bash
+python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 crossDomain 拿 Set-Cookie → 覆写 cookie 文件（自动备份 .bak-qr）
+```
+
+- 二维码 PNG 输出到 `tmp/bili-qr-login-<ts>.png`（**文件名带时间戳**，防浏览器缓存旧图），发给本人用**小号 B站 App** 扫码并点确认
+- 新版 poll 成功后返回的是 **crossDomain 跳转 URL**（`passport.biligame.com/.../crossDomain?ticket=...`），不是直接 SESSDATA —— 脚本必须**跟随跳转**从 Set-Cookie 提取登录态（第一次踩坑：只解析 query 拿不到）
+- 状态码：`86101` = 等待扫码（正常）、`86090` = 已扫待确认、`CONFIRMED` 后 `LOGIN_OK` = 成功；二维码 3 分钟有效，超时重跑
+- 成功后 `radar.py check` 验证；`~/.openclaw/secrets/` 里没有其它 B站凭据可自愈，扫码是唯一免手动导出的路径
+- 历史：10-23 01:00 ~ 10-27 14:00 连续 **110 轮停摆**后靠此法恢复（2026-10-27）
 
 ## 评论与 @（**默认关**）
 

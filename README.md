@@ -33,6 +33,7 @@
 ```bash
 # 1. 导出小号 cookie 到（任一行的 key=value 形式）
 #    ~/.openclaw/secrets/bilibili-cookies.txt   ← 至少要有 SESSDATA / bili_jct / buvid3
+#    cookie 失效（-101）时不用手动导出：跑 scripts/bili_qr_login.py，二维码给本人扫码即换新登录态
 python3 scripts/radar.py check          # 校验：打印昵称 = 有效
 
 # 2. 把模板放进状态目录，写第一条兴趣线
