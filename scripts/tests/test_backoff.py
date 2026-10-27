@@ -5,7 +5,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import radar as R
+from radar_lib import cli as R
 
 
 class TestBackoff(unittest.TestCase):
@@ -13,7 +13,7 @@ class TestBackoff(unittest.TestCase):
         R._BACKOFF["streak"] = 0
 
     def test_retry_sleep_exponential(self):
-        with mock.patch("bili_client.time.sleep") as s:
+        with mock.patch("radar_lib.client.time.sleep") as s:
             R._retry_sleep(0)
             self.assertEqual(s.call_args[0][0], 1.5)
             R._retry_sleep(1)
@@ -22,7 +22,7 @@ class TestBackoff(unittest.TestCase):
             self.assertEqual(s.call_args[0][0], 6.0)
 
     def test_retry_sleep_cap_60(self):
-        with mock.patch("bili_client.time.sleep") as s:
+        with mock.patch("radar_lib.client.time.sleep") as s:
             R._retry_sleep(6)  # 1.5 * 64 = 96 → cap 60
             self.assertEqual(s.call_args[0][0], 60.0)
 

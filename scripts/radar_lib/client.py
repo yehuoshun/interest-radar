@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from core import API, UA, die
+from radar_lib.core import API, UA, die
 
 # wbi 签名用的混淆表（B站前端同款）
 MIX = [46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49,

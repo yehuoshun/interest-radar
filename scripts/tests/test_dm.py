@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import radar as R
+from radar_lib import cli as R
 
 MID, ME = 239028467, 111
 
@@ -24,8 +24,8 @@ class TestDmWatermark(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         os.environ["INTERESTS_DIR"] = self.tmp
         for target, se in [
-            ("notify.load_cookie", lambda: "ck"),
-            ("notify.read_config", lambda: {"mention": {"mid": MID}}),
+            ("radar_lib.notify.load_cookie", lambda: "ck"),
+            ("radar_lib.notify.read_config", lambda: {"mention": {"mid": MID}}),
         ]:
             p = mock.patch(target, side_effect=se)
             p.start()
@@ -42,7 +42,7 @@ class TestDmWatermark(unittest.TestCase):
             if "nav" in url:
                 return {"data": {"mid": ME}}
             return {"data": {"messages": msgs}}
-        with mock.patch("notify.get", side_effect=fake_get):
+        with mock.patch("radar_lib.notify.get", side_effect=fake_get):
             a = SimpleNamespace(mid=None, size=20, new_only=new_only)
             captured = {}
             import io

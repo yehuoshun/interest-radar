@@ -6,6 +6,7 @@
 ffmpeg 对稀疏 mp4 的 seek 由 moov 索引驱动 —— mdat 缺口（零填充）不影响精确抽帧。
 """
 import struct
+import urllib.request
 from pathlib import Path
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

@@ -9,7 +9,7 @@ import json
 import time
 from datetime import datetime
 
-from core import die, read_config, state_dir
+from radar_lib.core import die, read_config, state_dir
 
 
 def note_failure(d) -> int:

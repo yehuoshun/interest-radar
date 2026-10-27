@@ -183,6 +183,36 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 - 账本：`interests/drafts.jsonl`；状态：pending → approved(sent) / discarded / expired / failed
 - ⚠️ 这条试点就是「陌生人互动」的全部：不回私信陌生人、不主动评论陌生人、不 @ 第三人
 
+## 代码结构（2026-10-27 包化）
+
+**零 `__init__.py`**（Python 3.3+ 隐式命名空间包），目录即领域：
+
+```
+scripts/
+├── radar.py          # CLI 入口薄壳（18 行）→ python3 scripts/radar.py <子命令>
+├── frames.py         # 抽帧入口薄壳（17 行）→ python3 scripts/frames.py --bv ...
+├── bili_qr_login.py  # 扫码登录工具
+├── apply-cron.py     # cron 工具
+├── radar_lib/        # 包（无 __init__.py）
+│   ├── core.py       基建：常量/路径/cookie/配置/die（60 行，零依赖）
+│   ├── client.py     请求层：退避/熔断/wbi/csrf/GET+POST（173 行）
+│   ├── gates.py      写闸：冷却/频控/失败关闸/账本（144 行）
+│   ├── cli.py        argparse 主入口 + 全量 re-export（153 行）
+│   ├── browse.py     浏览：check/搜索/字幕/seen（145 行）
+│   ├── comment.py    评论：@主号/自发/快筛/可见性（349 行，最大）
+│   ├── draft.py      草稿审核状态机（184 行）
+│   ├── notify.py     通知与私信（198 行）
+│   ├── dynamic.py    动态发/删（77 行）
+│   ├── feedback.py   反馈/统计/活跃度（138 行）
+│   └── media/
+│       ├── frames.py      抽帧流程（365 行）
+│       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
+└── tests/            # 37 用例（unittest，零网络）
+```
+
+**规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
+外部调用走 `python3 scripts/radar.py <cmd>`，不要直接 import `radar_lib.*`。
+
 ## 测试（2026-10-27 起自带）
 
 零第三方依赖，纯 unittest + mock（不碰真实账号/网络/凭据）：
@@ -191,8 +221,9 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 cd <skill>/scripts && python3 -m unittest discover tests -v
 ```
 
-35 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
-engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）。
+37 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
+state_dir 路径（包化后不能算成 skills/interests）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
 
 ## 报告格式（`interests/out/<日期>.md`）

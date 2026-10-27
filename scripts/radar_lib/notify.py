@@ -10,9 +10,9 @@ import random as _random
 import time
 from datetime import datetime
 
-from bili_client import csrf_from_cookie, get, post_form
-from core import API, UA, cookie_path, die, load_cookie, read_config, state_dir
-from gates import _record_write, _write_cooldown, _write_fail, _write_gate
+from radar_lib.client import csrf_from_cookie, get, post_form
+from radar_lib.core import API, UA, cookie_path, die, load_cookie, read_config, state_dir
+from radar_lib.gates import _record_write, _write_cooldown, _write_fail, _write_gate
 
 
 def cmd_msg(a):

@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import radar as R
+from radar_lib import cli as R
 
 
 BASE_CFG = {
@@ -27,9 +27,9 @@ class DraftBase(unittest.TestCase):
         os.environ["INTERESTS_DIR"] = self.tmp
         self._recs = []
         for mock_target, side_effect in [
-            ("draft.read_config", lambda: BASE_CFG),
-            ("draft.load_cookie", lambda: "ck"),
-            ("draft.csrf_from_cookie", lambda raw: "jct"),
+            ("radar_lib.draft.read_config", lambda: BASE_CFG),
+            ("radar_lib.draft.load_cookie", lambda: "ck"),
+            ("radar_lib.draft.csrf_from_cookie", lambda raw: "jct"),
         ]:
             p = mock.patch(mock_target, side_effect=side_effect)
             p.start()
@@ -115,7 +115,7 @@ class TestDraftApprove(DraftBase):
 
     def test_approve_dry_run(self):
         self._new()
-        with mock.patch("draft.get", return_value={"data": {"aid": 42}}) as g:
+        with mock.patch("radar_lib.draft.get", return_value={"data": {"aid": 42}}) as g:
             self._approve(yes=False)  # 不抛
             self.assertTrue(g.called)  # view 查了，但没发
         recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
@@ -123,8 +123,8 @@ class TestDraftApprove(DraftBase):
 
     def test_approve_sends_and_marks_sent(self):
         self._new()
-        with mock.patch("draft.get", return_value={"data": {"aid": 42}}), \
-             mock.patch("draft.post_reply", return_value={"code": 0, "data": {"rpid_str": "999"}}):
+        with mock.patch("radar_lib.draft.get", return_value={"data": {"aid": 42}}), \
+             mock.patch("radar_lib.draft.post_reply", return_value={"code": 0, "data": {"rpid_str": "999"}}):
             self._approve(yes=True)
         recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
         self.assertEqual(recs[0]["status"], "sent")
@@ -133,13 +133,13 @@ class TestDraftApprove(DraftBase):
     def test_approve_failure_counts(self):
         self._new()
         for _ in range(2):
-            with mock.patch("draft.get", return_value={"data": {"aid": 42}}), \
-                 mock.patch("draft.post_reply", return_value={"code": -400, "message": "bad"}):
+            with mock.patch("radar_lib.draft.get", return_value={"data": {"aid": 42}}), \
+                 mock.patch("radar_lib.draft.post_reply", return_value={"code": -400, "message": "bad"}):
                 with self.assertRaises(SystemExit):
                     self._approve(yes=True)
         # 第 3 次失败 → failed
-        with mock.patch("draft.get", return_value={"data": {"aid": 42}}), \
-             mock.patch("draft.post_reply", return_value={"code": -400, "message": "bad"}):
+        with mock.patch("radar_lib.draft.get", return_value={"data": {"aid": 42}}), \
+             mock.patch("radar_lib.draft.post_reply", return_value={"code": -400, "message": "bad"}):
             with self.assertRaises(SystemExit):
                 self._approve(yes=True)
         recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]

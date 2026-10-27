@@ -5,8 +5,8 @@ import json
 import re
 import time
 
-from bili_client import get, wbi_keys, wbi_sign
-from core import API, clean, cookie_path, die, load_cookie, state_dir
+from radar_lib.client import get, wbi_keys, wbi_sign
+from radar_lib.core import API, clean, cookie_path, die, load_cookie, state_dir
 
 
 # ───────────────────────────── 子命令 ─────────────────────────────
