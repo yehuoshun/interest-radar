@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # 仓库声明 Python 3.10+；CI 固定 3.11，先保证绿灯，之后可加 matrix
+          python-version: '3.11'
+
+      - name: 语法检查
+        run: python -m compileall -q scripts
+
+      # 37 个用例全是纯 unittest + tempfile：零网络、零 cookie、0.1 秒跑完
+      - name: 单元测试
+        working-directory: scripts
+        run: python -m unittest discover -s tests -v
+
+      - name: CLI 冒烟（不读 cookie）
+        run: python scripts/radar.py --help
