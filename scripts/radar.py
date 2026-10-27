@@ -558,6 +558,77 @@ def cmd_reply(a):
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
+def cmd_comment(a):
+    """自发评论（2026-10-27 老板放权：看到感兴趣的视频可以发，不强制 @ 主号、不属于雷达流程）。
+
+    闸：① write.comment.enabled ② 显式 --yes ③ 非空且 ≤ 200 字
+        ④ 敏感词（write.comment.forbid）fail-closed ⑤ 频控 ⑥ 同一视频只发一条
+        ⑦ 连续失败 3 次自动关 write.comment.enabled
+    """
+    seg = _write_gate("comment")
+    text = (a.text or "").strip()
+    if not text:
+        die("闸③：正文为空 —— 拒绝发", 7)
+    if len(text) > 200:
+        die(f"闸③：正文 {len(text)} 字 > 200 字上限", 7)
+    forbid = [w for w in (seg.get("forbid") or []) if w and w in text]
+    if forbid:
+        die(f"闸④：正文命中敏感词 {forbid} —— 拒绝发（公开评论里不许出现这些）", 10)
+    d = state_dir()
+    if seg.get("same_video_once", True):
+        prev = [r for r in write_log(d) if r.get("kind") == "comment" and r.get("bv") == a.bv]
+        if prev:
+            die(f"闸⑥：{a.bv} 已发过自发评论 —— 同一视频只发一条", 13)
+    cookie = load_cookie()
+    jct = csrf_from_cookie(cookie_path().read_text(encoding="utf-8"))
+    if not jct:
+        die("cookie 里没有 bili_jct（csrf）—— 没法发评论", 6)
+    v = get(f"{API}/x/web-interface/view?bvid={a.bv}", cookie)["data"]
+    aid, title = v["aid"], v.get("title")
+    out = {"kind": "comment", "bv": a.bv, "aid": aid, "title": title, "text": text,
+           "url": f"https://www.bilibili.com/video/{a.bv}", "dry_run": not a.yes}
+    if not a.yes:
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        print("（干跑：要真发请加 --yes）", file=sys.stderr)
+        return
+    fields = {"type": 1, "oid": aid, "message": text, "csrf": jct,
+              "plat": 1, "ordering": "heat"}
+    body = urllib.parse.urlencode(fields).encode()
+    req = urllib.request.Request(f"{API}/x/v2/reply/add", data=body, headers={
+        "User-Agent": UA, "Referer": f"https://www.bilibili.com/video/{a.bv}",
+        "Cookie": cookie, "Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            res = json.load(r)
+    except Exception as e:  # noqa: BLE001
+        die(f"发评论请求失败：{type(e).__name__}: {e}", 8)
+    if res.get("code") != 0:
+        n = _write_fail(d, "comment")
+        if n >= 3:
+            cf = d / "config.json"
+            try:
+                cfgall = json.loads(cf.read_text(encoding="utf-8"))
+                cfgall.setdefault("write", {}).setdefault("comment", {})["enabled"] = False
+                cf.write_text(json.dumps(cfgall, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                print("⚠️ 连续 3 次自发评论失败 → 已自动关掉 write.comment.enabled（防账号被爆），等本人来看", file=sys.stderr)
+            except Exception:  # noqa: BLE001
+                pass
+        die(f"发评论被拒：code={res.get('code')} msg={res.get('message')}（累计失败 {n} 次）", 9)
+    rpid = ((res.get("data") or {}).get("rpid_str") or (res.get("data") or {}).get("rpid"))
+    time.sleep(3)
+    vis = None
+    try:
+        vis = visible_anon(a.bv, str(rpid), pages=2)
+    except Exception:  # noqa: BLE001
+        vis = None
+    note = {True: "公开可见", False: "匿名不可见（可能被拦/审核中）", None: "未验证"}[vis]
+    _record_write(d, {"ts": datetime.now().isoformat(timespec="seconds"),
+                      "kind": "comment", "bv": a.bv, "rpid": str(rpid), "chars": len(text),
+                      "visible_anon": vis})
+    out.update({"posted": True, "rpid": str(rpid), "visible_anon": vis, "verdict": note})
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
 def cmd_dynamic(a):
     """发一条动态（默认干跑；真发要 --yes + config 开关）。
 
@@ -946,6 +1017,12 @@ def main():
     s.add_argument("--score", type=int)
     s.add_argument("--note")
     s.set_defaults(fn=cmd_feedback)
+
+    s = sub.add_parser("comment")
+    s.add_argument("--bv", required=True)
+    s.add_argument("--text", required=True, help="自发评论正文（≤200 字，无需 @ 主号）")
+    s.add_argument("--yes", action="store_true", help="真正发出（默认干跑）")
+    s.set_defaults(fn=cmd_comment)
 
     s = sub.add_parser("dynamic")
     s.add_argument("--text", required=True, help="动态正文（≤200 字）")

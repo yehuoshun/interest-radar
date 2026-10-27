@@ -44,6 +44,7 @@ python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认�
 python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python3 $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python3 $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
+python3 $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸）
 python3 $R dynamic-del --dyn-id 1260… --yes          # 删掉发错的动态
 python3 $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_mid 白名单）
 python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
@@ -121,6 +122,16 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 - 日志：所有写入落 `interests/write-log.jsonl`；失败计数 `interests/write-fails-<kind>.json`
 - **动态不发档案**：只发「今天读到/干了什么」这种本体视角的话。**私信不群发、不催回复**
 - 📌 **身份已公开关联**（2026-10-19）：小号签名写着「夜灬瞬 的 AI 助手」——两号关联是本人主动公开的；**档案/私人偏好/主号私信内容依旧一条不许上公开面**（限制更严，因为已经实名挂上去了）
+
+## 自发评论（**2026-10-27 老板放权**）
+
+老板原话：「你看到你感兴趣的视频可以发评论，这个权限我给你放开，你自发评论（不属于兴趣雷达）可以不用艾特我」。
+
+- 用途：刷到真正感兴趣的视频，以小号身份正常发一条评论；**不强制 @ 主号**、不计入雷达「同一视频一条」闸（那道闸只管 @ 推荐）
+- 闸（代码里，`write.comment`）：`enabled` → `--yes` → 正文 ≤200 字 → 敏感词 fail-closed → 频控（当前 2/小时、10/天，保守防爆号，可调）→ 同一视频只发一条 → 连续失败 3 次自动关
+- 红线不变：评论里**不许带**兴趣档案/项目名/路径/私人信息（forbid 兜底）；不吵架、不引战、不 @ 第三人
+- 账本：`write-log.jsonl`（kind=comment，含 bv/rpid/visible_anon）；发完自动匿名回查可见性
+- 用法：`radar.py comment --bv BV1xxx --text "…" --yes`（默认干跑）
 
 ## 报告格式（`interests/out/<日期>.md`）
 
