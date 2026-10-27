@@ -25,10 +25,15 @@ class DraftBase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         os.environ["INTERESTS_DIR"] = self.tmp
+        # 测试必须自带假 cookie：approve 路径里的 cookie_path().read_text() 没有被 mock，
+        # 之前靠本机 ~/.openclaw/secrets/bilibili-cookies.txt 恰好存在才绿 —— CI 上直接 FileNotFoundError。
+        self._fake_cookie = Path(self.tmp, "fake-cookie.txt")
+        self._fake_cookie.write_text("SESSDATA=fake; bili_jct=fakejct; buvid3=fake\n", encoding="utf-8")
         self._recs = []
         for mock_target, side_effect in [
             ("bili_radar.draft.read_config", lambda: BASE_CFG),
             ("bili_radar.draft.load_cookie", lambda: "ck"),
+            ("bili_radar.draft.cookie_path", lambda: self._fake_cookie),
             ("bili_radar.draft.csrf_from_cookie", lambda raw: "jct"),
         ]:
             p = mock.patch(mock_target, side_effect=side_effect)
