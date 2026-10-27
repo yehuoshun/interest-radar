@@ -13,3 +13,7 @@ __pycache__/
 
 # 杂项
 .DS_Store
+
+# 抽帧产物（运行时生成，不进仓库）
+frames/
+interests/
