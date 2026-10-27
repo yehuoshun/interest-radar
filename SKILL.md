@@ -193,7 +193,7 @@ scripts/
 ├── frames.py         # 抽帧入口薄壳（17 行）→ python3 scripts/frames.py --bv ...
 ├── bili_qr_login.py  # 扫码登录工具
 ├── apply-cron.py     # cron 工具
-├── radar_lib/        # 包（无 __init__.py）
+├── bili_radar/        # 包（无 __init__.py）
 │   ├── core.py       基建：常量/路径/cookie/配置/die（60 行，零依赖）
 │   ├── client.py     请求层：退避/熔断/wbi/csrf/GET+POST（173 行）
 │   ├── gates.py      写闸：冷却/频控/失败关闸/账本（144 行）
@@ -211,7 +211,7 @@ scripts/
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
-外部调用走 `python3 scripts/radar.py <cmd>`，不要直接 import `radar_lib.*`。
+外部调用走 `python3 scripts/radar.py <cmd>`，不要直接 import `bili_radar.*`。
 
 ## 测试（2026-10-27 起自带）
 

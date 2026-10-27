@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from radar_lib import cli as R
+from bili_radar import cli as R
 
 
 class TestWriteCooldown(unittest.TestCase):

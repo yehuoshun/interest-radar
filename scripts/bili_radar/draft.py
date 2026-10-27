@@ -10,10 +10,10 @@ import sys
 import time
 from datetime import datetime
 
-from radar_lib.client import csrf_from_cookie, get
-from radar_lib.comment import post_reply
-from radar_lib.core import API, cookie_path, die, load_cookie, read_config, state_dir
-from radar_lib.gates import _write_cooldown
+from bili_radar.client import csrf_from_cookie, get
+from bili_radar.comment import post_reply
+from bili_radar.core import API, cookie_path, die, load_cookie, read_config, state_dir
+from bili_radar.gates import _write_cooldown
 
 
 def drafts_file():

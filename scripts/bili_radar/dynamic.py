@@ -7,9 +7,9 @@
 import json
 from datetime import datetime
 
-from radar_lib.client import csrf_from_cookie, get, post_form, post_json
-from radar_lib.core import API, cookie_path, die, load_cookie, read_config, state_dir
-from radar_lib.gates import _record_write, _write_cooldown, _write_fail, _write_gate
+from bili_radar.client import csrf_from_cookie, get, post_form, post_json
+from bili_radar.core import API, cookie_path, die, load_cookie, read_config, state_dir
+from bili_radar.gates import _record_write, _write_cooldown, _write_fail, _write_gate
 
 
 def cmd_dynamic(a):

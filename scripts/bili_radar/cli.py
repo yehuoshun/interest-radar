@@ -19,22 +19,22 @@ radar.py —— 兴趣雷达入口：argparse 路由 + 全量 re-export（兼容
 import argparse
 
 # ── 基础设施 & 请求层 ──────────────────────────────────────────
-from radar_lib.client import (_BACKOFF, _note_fail, _note_ok, _retry_sleep, csrf_from_cookie,
+from bili_radar.client import (_BACKOFF, _note_fail, _note_ok, _retry_sleep, csrf_from_cookie,
                          get, post_form, post_json, wbi_keys, wbi_sign)
-from radar_lib.core import API, UA, clean, cookie_path, die, load_cookie, read_config, state_dir
+from bili_radar.core import API, UA, clean, cookie_path, die, load_cookie, read_config, state_dir
 
 # ── 写操作闸 ───────────────────────────────────────────────────
-from radar_lib.gates import (_ago_h, _record_write, _write_cooldown, _write_fail, _write_gate,
+from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fail, _write_gate,
                    mention_log, note_failure, write_log)
 
 # ── 域模块 ─────────────────────────────────────────────────────
-from radar_lib.browse import cmd_check, cmd_search, cmd_seen, cmd_sub, fetch_subtitle_text
-from radar_lib.comment import (anon_get, cmd_check_reply, cmd_comment, cmd_comment_check,
+from bili_radar.browse import cmd_check, cmd_search, cmd_seen, cmd_sub, fetch_subtitle_text
+from bili_radar.comment import (anon_get, cmd_check_reply, cmd_comment, cmd_comment_check,
                      cmd_rate, cmd_reply, fetch_hot_comments, post_reply, visible_anon)
-from radar_lib.draft import cmd_draft, drafts_file, load_drafts, save_drafts
-from radar_lib.dynamic import cmd_dynamic, cmd_dynamic_del
-from radar_lib.feedback import cmd_engagement, cmd_feedback, cmd_stats
-from radar_lib.notify import cmd_dm, cmd_msg, cmd_notify, radar_unread
+from bili_radar.draft import cmd_draft, drafts_file, load_drafts, save_drafts
+from bili_radar.dynamic import cmd_dynamic, cmd_dynamic_del
+from bili_radar.feedback import cmd_engagement, cmd_feedback, cmd_stats
+from bili_radar.notify import cmd_dm, cmd_msg, cmd_notify, radar_unread
 
 
 def main():

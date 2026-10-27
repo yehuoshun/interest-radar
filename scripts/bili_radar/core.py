@@ -31,7 +31,7 @@ def state_dir() -> Path:
     if p:
         return Path(p)
     # 向上找 <workspace>/skills/interest-radar 标记，不依赖文件层级深度
-    # （2026-10-27 包化后加了 radar_lib/ 一层，原来的 parents[3] 会算到 skills/interests）
+    # （2026-10-27 包化后加了 bili_radar/ 一层，原来的 parents[3] 会算到 skills/interests）
     here = Path(__file__).resolve()
     for parent in here.parents:
         if (parent / "skills" / "interest-radar").is_dir():

@@ -9,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from radar_lib import cli as R
+from bili_radar import cli as R
 
 
 class TestEngagement(unittest.TestCase):

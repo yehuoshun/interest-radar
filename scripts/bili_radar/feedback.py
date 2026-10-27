@@ -6,7 +6,7 @@ import re
 import time
 from datetime import datetime, timedelta
 
-from radar_lib.core import state_dir
+from bili_radar.core import state_dir
 
 
 def cmd_feedback(a):

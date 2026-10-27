@@ -43,8 +43,8 @@ MIX = [46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 4
 
 FFMPEG = os.environ.get("FFMPEG") or "ffmpeg"
 
-from radar_lib.core import die, load_cookie, state_dir  # noqa: E402
-from radar_lib.media.mp4_sparse import _SparsePlan, build_sparse, sparse_plan  # noqa: E402
+from bili_radar.core import die, load_cookie, state_dir  # noqa: E402
+from bili_radar.media.mp4_sparse import _SparsePlan, build_sparse, sparse_plan  # noqa: E402
 
 
 def http_get_json(url: str, cookie: str, tries: int = 3):

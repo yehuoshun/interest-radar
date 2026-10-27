@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from radar_lib.core import state_dir
+from bili_radar.core import state_dir
 
 
 class TestStateDir(unittest.TestCase):

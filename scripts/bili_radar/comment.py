@@ -9,9 +9,9 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 
-from radar_lib.client import csrf_from_cookie, get, wbi_keys, wbi_sign
-from radar_lib.core import API, UA, cookie_path, die, load_cookie, read_config, state_dir
-from radar_lib.gates import (_ago_h, _record_write, _write_cooldown, _write_fail,
+from bili_radar.client import csrf_from_cookie, get, wbi_keys, wbi_sign
+from bili_radar.core import API, UA, cookie_path, die, load_cookie, read_config, state_dir
+from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fail,
                    _write_gate, mention_log, note_failure, write_log)
 
 

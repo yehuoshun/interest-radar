@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from radar_lib.media import frames as F
+from bili_radar.media import frames as F
 
 # 手造小表：stsc = [(1,3,1),(2,2,1),(4,3,1)] → 6 chunks, 16 samples
 # chunk0=3 samples, chunk1-2=2, chunk3-5=3
