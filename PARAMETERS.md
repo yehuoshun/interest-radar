@@ -105,6 +105,10 @@
 
 ## 🚨 本次审计发现的问题清单（2026-11-02）
 
+> **状态更新（同日晚些时候，A2 落地）**：新增 `radar.py verify-params` 参数采用对账，
+> 下表问题的 1/2（drift）和 3/4/5/6（not-consumed）已能**每次运行动态自检**、
+> conflict 才会让退出码非零（cron 可挂告警）。处置（对齐口径/清理）仍待老板拍板。
+
 按影响排序，**前两条是真实行为级问题，其余是卫生问题**：
 
 | # | 级别 | 问题 | 影响 |
@@ -129,9 +133,10 @@
 2. **改模型规则**（阈值/条数/流程）→ 改 `SKILL.md` + `charter.md` **两处一起**（本文件揭示：单改一处必漂移）。charter 是最终口径。
 3. **改 cron/schedule** → 走 `scripts/apply-cron.py`（all/valley），不是 config.json 说了算。
 4. **验证**：
+   - `python3 scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂 cron 做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
    - `python3 scripts/radar.py rate` — 看 @ 频控用量与参数
    - `radar.py mention --bv <BV> --dry-run`（默认干跑）— 验闸与文案
-   - `cd scripts && python3 -m unittest discover tests -v` — 37 用例回归（零网络）
+   - `cd scripts && python3 -m unittest discover tests -v` — 52 用例回归（零网络）
 5. **审计口径**：本文件每次改参数后顺手核一遍「接线/漂移」列，保持地图与代码同步。
 
 ---

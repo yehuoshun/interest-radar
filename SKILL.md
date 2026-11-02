@@ -42,6 +42,7 @@ python3 $R seen check BV1xxx                        # SEEN / NEW
 python3 $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
 python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
+python3 $R verify-params [--json]                    # 参数采用对账：config 保存值 vs 运行证据（只读；conflict>0 → exit 3）
 python3 $R engagement [--days N]                    # 活跃度评估：老板反馈/主动@/批准草稿/报告数 → 判读是否降频
 python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
 python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）

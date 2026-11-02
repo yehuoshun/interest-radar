@@ -35,6 +35,7 @@ from bili_radar.draft import cmd_draft, drafts_file, load_drafts, save_drafts
 from bili_radar.dynamic import cmd_dynamic, cmd_dynamic_del
 from bili_radar.feedback import cmd_engagement, cmd_feedback, cmd_stats
 from bili_radar.notify import cmd_dm, cmd_msg, cmd_notify, radar_unread
+from bili_radar.verify_params import cmd_verify_params
 
 
 def main():
@@ -138,6 +139,10 @@ def main():
                    help="只列比上次新的（用时间水位，不靠未读计数）")
     s.set_defaults(fn=cmd_notify)
     sub.add_parser("stats").set_defaults(fn=cmd_stats)
+
+    s = sub.add_parser("verify-params")
+    s.add_argument("--json", action="store_true", help="结构化输出（供 cron/脚本解析；conflict>0 → exit 3）")
+    s.set_defaults(fn=cmd_verify_params)
 
     s = sub.add_parser("engagement")
     s.add_argument("--days", type=int, default=14, help="统计窗口（默认 14 天）")
