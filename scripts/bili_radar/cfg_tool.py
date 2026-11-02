@@ -15,12 +15,11 @@ radar.py config set / restore / list：给 config.json 的人工修改套上
 零网络；除 --yes 写入外零副作用。
 """
 import json
-import shutil
 import sys
 from datetime import datetime
 
 from bili_radar.core import die, read_config, state_dir
-from bili_radar.gates import backup_config
+from bili_radar.gates import atomic_write_config, backup_config
 
 # 敏感项：改动涉及账号安全 / 闸门行为（提醒但不拦——维护者是老板）
 SENSITIVE_KEYS = {"enabled", "allow_mid", "forbid", "per_hour", "per_day", "per_12h",
@@ -107,11 +106,18 @@ def cmd_cfg_set(a):
     if bak is None:
         die("备份 config.json 失败 —— 拒绝写入（备份失败不提交）")
 
-    node[key] = new_val
-    try:
-        cf.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    except Exception as e:  # noqa: BLE001
-        die(f"写入失败：{e} —— 备份保留在 {bak.name}，可 config restore {bak.name} 还原")
+    # B3（2026-11-02）：原子写 + 乐观锁 —— mutate 基于每次新读的配置执行
+    state = {"before": old_val}
+
+    def mutate(cfg2):
+        nd = cfg2
+        for p2 in parts[:-1]:
+            nd = nd[p2]
+        state["before"] = nd[key]
+        nd[key] = new_val
+        return cfg2
+
+    atomic_write_config(d, mutate)
     # 写后重读校验：JSON 可解析 + 原路径还能导航到目标键
     try:
         chk = json.loads(cf.read_text(encoding="utf-8"))
@@ -125,7 +131,7 @@ def cmd_cfg_set(a):
     # A4（2026-11-02）：变更入账本（reason 只记人明说的，不编造）
     from bili_radar.history import append_change
     cid = append_change(d, actor=getattr(a, "actor", "agent"), param=a.path,
-                         before=old_val, after=new_val,
+                         before=state["before"], after=new_val,
                          reason=getattr(a, "reason", None))
     print(f"✅ 已写入 {a.path} = {new_val!r}（备份：{bak.name}；账本：{cid}）")
 
@@ -166,10 +172,11 @@ def cmd_cfg_restore(a):
     if pre is None:
         die("恢复前备份当前 config 失败 —— 拒绝恢复（保持现状不动）")
 
-    try:
-        shutil.copy2(target, cf)
-    except Exception as e:  # noqa: BLE001
-        die(f"恢复失败：{e}（当前状态保留在 {pre.name}）")
+    # B3（2026-11-02）：原子替换 + 乐观锁（不用 copy2 直写，避免半截文件）
+    def m(_cfg2):
+        return json.loads(target.read_text(encoding="utf-8"))
+
+    atomic_write_config(d, m)
     # A4：回滚入账本 —— changed = 恢复实际变动的参数（diff pre=恢复前 vs target=恢复后）
     from bili_radar.history import append_rollback, diff_params
     try:

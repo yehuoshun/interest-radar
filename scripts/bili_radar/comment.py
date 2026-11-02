@@ -13,7 +13,8 @@ from datetime import datetime
 from bili_radar.client import csrf_from_cookie, get, wbi_keys, wbi_sign
 from bili_radar.core import API, UA, cookie_path, die, load_cookie, read_config, state_dir
 from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fail,
-                   _write_gate, backup_config, mention_log, note_failure, write_log)
+                   _write_gate, atomic_write_config, backup_config, mention_log,
+                   note_failure, write_log)
 
 
 def post_reply(bv: str, aid: int, text: str, reply_to, cookie: str, jct: str):
@@ -141,7 +142,6 @@ def cmd_reply(a):
 def cmd_rate(a):
     """看 / 改频控参数（都在 config.json 的 mention 里，改完立即生效）。"""
     d = state_dir()
-    cf = d / "config.json"
     cfg = read_config().get("mention") or {}
     if a.per_round is None and a.per_hour is None and a.per_day is None:
         log = mention_log(d)
@@ -156,27 +156,30 @@ def cmd_rate(a):
             "说明": "0 = 不限；per_round = 每轮上限，per_hour/per_day = 滚动窗口上限",
         }, ensure_ascii=False, indent=2))
         return
-    try:
-        raw = json.loads(cf.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        raw = {}
-    m = raw.setdefault("mention", {})
-    old = {}
-    for k, v in (("per_round", a.per_round), ("per_hour", a.per_hour), ("per_day", a.per_day)):
-        if v is not None:
-            old[k] = m.get(k)
-            m[k] = int(v)
     # A3（2026-11-02）：人工改配置必须带备份（备份失败拒写），事后可 config restore
     if not backup_config(d):
         die("备份 config.json 失败 —— 拒绝写入（备份失败不提交）", 8)
-    cf.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # B3（2026-11-02）：原子写 + 乐观锁（并发被改则重读重试，绝不覆盖别人的修改）
+    old: dict = {}
+
+    def mutate(cfg):
+        ment = cfg.setdefault("mention", {})
+        for k, v in (("per_round", a.per_round), ("per_hour", a.per_hour), ("per_day", a.per_day)):
+            if v is not None:
+                old[k] = ment.get(k)
+                ment[k] = int(v)
+        return cfg
+
+    atomic_write_config(d, mutate)
     # A4（2026-11-02）：逐键入变更账本（rate 是我/老板代跑，actor 记 agent）
     from bili_radar.history import append_change
     for k, v in (("per_round", a.per_round), ("per_hour", a.per_hour), ("per_day", a.per_day)):
         if v is not None:
             append_change(d, actor="agent", param=f"mention.{k}",
                           before=old.get(k), after=int(v))
-    print(f"✅ 频控已更新：per_round={m.get('per_round')} / per_hour={m.get('per_hour')} / per_day={m.get('per_day')}（已自动备份+记账）")
+    new = read_config().get("mention") or {}
+    print(f"✅ 频控已更新：per_round={new.get('per_round')} / per_hour={new.get('per_hour')} / "
+          f"per_day={new.get('per_day')}（已自动备份+记账）")
 
 
 def fetch_hot_comments(aid: int, cookie: str, ps: int = 10):

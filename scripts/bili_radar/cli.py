@@ -25,7 +25,7 @@ from bili_radar.core import API, UA, clean, cookie_path, die, load_cookie, read_
 
 # ── 写操作闸 ───────────────────────────────────────────────────
 from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fail, _write_gate,
-                   backup_config, mention_log, note_failure, write_log)
+                   atomic_write_config, backup_config, mention_log, note_failure, write_log)
 
 # ── 域模块 ─────────────────────────────────────────────────────
 from bili_radar.browse import cmd_check, cmd_search, cmd_seen, cmd_sub, fetch_subtitle_text

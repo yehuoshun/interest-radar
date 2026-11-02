@@ -6,12 +6,47 @@
 必须过这里的闸（干跑不触发；删除类操作不冷却）。
 """
 import json
+import os
 import shutil
 import time
 import uuid
 from datetime import datetime
 
 from bili_radar.core import die, read_config, state_dir
+
+
+def atomic_write_config(d, mutate_fn, max_retries=3):
+    """原子写 config.json：tmp 文件 + os.replace + 乐观锁（B3 · 2026-11-02）。
+
+    mutate_fn(cfg) -> cfg（返回 None 表示无变化，不写）。
+    提交前重读字节比对（内容 CAS）：期间被并发改过 → 重读重试最多 max_retries 次，
+    仍冲突则 die（提示重跑，绝不覆盖别人的并发修改）。
+    不用 mtime 做指纹（沙箱粗粒度时钟下同毫秒写会逃逸）。
+    成功返回新配置 dict。对齐 SurfCore-Life 的 transactional CAS 原子性。
+    """
+    cf = d / "config.json"
+    for attempt in range(max_retries + 1):
+        try:
+            blob = cf.read_bytes()
+        except Exception as e:  # noqa: BLE001
+            die(f"config.json 读取失败：{e}")
+        try:
+            cfg = json.loads(blob)
+        except Exception as e:  # noqa: BLE001
+            die(f"config.json 解析失败：{e}")
+        new_cfg = mutate_fn(cfg)
+        if new_cfg is None:
+            return cfg
+        tmp = d / f"config.json.tmp-{uuid.uuid4().hex[:8]}"
+        tmp.write_text(json.dumps(new_cfg, ensure_ascii=False, indent=2) + "\n",
+                       encoding="utf-8")
+        # 提交前重读字节比对：期间被别人改过 → 重读重试（字节级，不吃粗粒度时钟的亏）
+        if cf.read_bytes() != blob:
+            tmp.unlink(missing_ok=True)
+            continue
+        os.replace(tmp, cf)
+        return new_cfg
+    die(f"config.json 在 {max_retries} 次重试期间仍被并发修改 —— 拒绝覆盖，请重跑", 9)
 
 
 def backup_config(d):
@@ -133,14 +168,16 @@ def _write_fail(d, kind: str) -> int:
     except Exception:  # noqa: BLE001
         pass
     if data["count"] >= 3:
-        cf = d / "config.json"
+        # B3（2026-11-02）：走原子写 + 乐观锁（熔断关闸也不准覆盖并发修改）
         try:
-            cfgall = json.loads(cf.read_text(encoding="utf-8"))
-            cfgall.setdefault("write", {}).setdefault(kind, {})["enabled"] = False
-            cf.write_text(json.dumps(cfgall, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            def _m(c2):
+                c2.setdefault("write", {}).setdefault(kind, {})["enabled"] = False
+                return c2
+
+            atomic_write_config(d, _m)
             print(f"⚠️ {kind} 连续 3 次失败 → 已自动关掉 write.{kind}.enabled（防账号被爆），等本人来看",
                   file=sys.stderr)
-        except Exception:  # noqa: BLE001
+        except BaseException:  # noqa: BLE001 —— 熔断自关是降级路径：关不上也绝不能炸主流程
             pass
     return data["count"]
 
