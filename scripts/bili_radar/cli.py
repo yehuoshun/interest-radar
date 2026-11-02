@@ -30,6 +30,8 @@ from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fai
 # ── 域模块 ─────────────────────────────────────────────────────
 from bili_radar.browse import cmd_check, cmd_search, cmd_seen, cmd_sub, fetch_subtitle_text
 from bili_radar.cfg_tool import cmd_cfg_restore, cmd_cfg_set
+from bili_radar.history import (append_change, append_observe, append_rollback,
+                   cmd_cfg_log, cmd_cfg_observe, diff_params)
 from bili_radar.comment import (anon_get, cmd_check_reply, cmd_comment, cmd_comment_check,
                      cmd_rate, cmd_reply, fetch_hot_comments, post_reply, visible_anon)
 from bili_radar.draft import cmd_draft, drafts_file, load_drafts, save_drafts
@@ -151,12 +153,23 @@ def main():
     p.add_argument("path", help="点分路径，如 mention.per_hour")
     p.add_argument("value", help="新值（先按 JSON 解析，失败按字符串）")
     p.add_argument("--yes", action="store_true", help="真正写入（默认干跑，只打印 before → after）")
+    p.add_argument("--reason", help="变更理由（记入账本；只记人明说的，不编造）")
+    p.add_argument("--actor", choices=["boss", "agent"], default="agent",
+                   help="谁改的（默认 agent；老板亲自跑可写 boss）")
     p.set_defaults(fn=cmd_cfg_set)
     p = csub.add_parser("restore")
     p.add_argument("name", nargs="?", help="备份文件名（config.json.bak-<ts>）")
     p.add_argument("--list", action="store_true", help="列出所有备份")
     p.add_argument("--yes", action="store_true", help="真正恢复（默认干跑）")
     p.set_defaults(fn=cmd_cfg_restore)
+    p = csub.add_parser("log")
+    p.add_argument("--param", help="只看某参数（如 mention.per_hour）")
+    p.add_argument("--json", action="store_true", help="结构化输出")
+    p.set_defaults(fn=cmd_cfg_log)
+    p = csub.add_parser("observe")
+    p.add_argument("change_id", help="要补观察的那次变更 id（config log 里看）")
+    p.add_argument("--note", required=True, help="观察内容（后来效果如何）")
+    p.set_defaults(fn=cmd_cfg_observe)
 
     s = sub.add_parser("engagement")
     s.add_argument("--days", type=int, default=14, help="统计窗口（默认 14 天）")

@@ -60,7 +60,7 @@ def _find_backups(d):
 
 
 def cmd_cfg_set(a):
-    """config set <path> <value> [--yes] —— 干跑默认，--yes 才写；写前备份。"""
+    """config set <path> <value> [--yes] —— 干跑默认，--yes 才写；写前备份；写后入账本。"""
     d = state_dir()
     cf = d / "config.json"
     if not cf.exists():
@@ -122,7 +122,12 @@ def cmd_cfg_set(a):
             die(f"写后校验失败：{a.path} 读不回 —— 配置可能损坏，请 config restore {bak.name}")
     except Exception as e:  # noqa: BLE001
         die(f"写后校验失败：{e} —— 请 config restore {bak.name}")
-    print(f"✅ 已写入 {a.path} = {new_val!r}（备份：{bak.name}）")
+    # A4（2026-11-02）：变更入账本（reason 只记人明说的，不编造）
+    from bili_radar.history import append_change
+    cid = append_change(d, actor=getattr(a, "actor", "agent"), param=a.path,
+                         before=old_val, after=new_val,
+                         reason=getattr(a, "reason", None))
+    print(f"✅ 已写入 {a.path} = {new_val!r}（备份：{bak.name}；账本：{cid}）")
 
 
 def cmd_cfg_restore(a):
@@ -165,4 +170,13 @@ def cmd_cfg_restore(a):
         shutil.copy2(target, cf)
     except Exception as e:  # noqa: BLE001
         die(f"恢复失败：{e}（当前状态保留在 {pre.name}）")
-    print(f"✅ 已恢复 {target.name} → config.json（恢复前状态在 {pre.name}，可再还原）")
+    # A4：回滚入账本 —— changed = 恢复实际变动的参数（diff pre=恢复前 vs target=恢复后）
+    from bili_radar.history import append_rollback, diff_params
+    try:
+        changed = diff_params(json.loads(pre.read_text(encoding="utf-8")),
+                               json.loads(target.read_text(encoding="utf-8")))
+        rid = append_rollback(d, backup_name=target.name, changed=changed)
+        print(f"✅ 已恢复 {target.name} → config.json（恢复前状态在 {pre.name}；账本：{rid}）")
+    except Exception as e:  # noqa: BLE001
+        print(f"✅ 已恢复 {target.name} → config.json（恢复前状态在 {pre.name}）", file=sys.stderr)
+        print(f"⚠️ 账本写入失败（{e}）—— 不影响恢复结果，可手动补记", file=sys.stderr)

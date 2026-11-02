@@ -161,14 +161,22 @@ def cmd_rate(a):
     except Exception:  # noqa: BLE001
         raw = {}
     m = raw.setdefault("mention", {})
+    old = {}
     for k, v in (("per_round", a.per_round), ("per_hour", a.per_hour), ("per_day", a.per_day)):
         if v is not None:
+            old[k] = m.get(k)
             m[k] = int(v)
     # A3（2026-11-02）：人工改配置必须带备份（备份失败拒写），事后可 config restore
     if not backup_config(d):
         die("备份 config.json 失败 —— 拒绝写入（备份失败不提交）", 8)
     cf.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"✅ 频控已更新：per_round={m.get('per_round')} / per_hour={m.get('per_hour')} / per_day={m.get('per_day')}（已自动备份）")
+    # A4（2026-11-02）：逐键入变更账本（rate 是我/老板代跑，actor 记 agent）
+    from bili_radar.history import append_change
+    for k, v in (("per_round", a.per_round), ("per_hour", a.per_hour), ("per_day", a.per_day)):
+        if v is not None:
+            append_change(d, actor="agent", param=f"mention.{k}",
+                          before=old.get(k), after=int(v))
+    print(f"✅ 频控已更新：per_round={m.get('per_round')} / per_hour={m.get('per_hour')} / per_day={m.get('per_day')}（已自动备份+记账）")
 
 
 def fetch_hot_comments(aid: int, cookie: str, ps: int = 10):

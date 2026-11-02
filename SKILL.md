@@ -42,8 +42,10 @@ python3 $R seen check BV1xxx                        # SEEN / NEW
 python3 $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
 python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
-python3 $R config set <段.键> <值> [--yes]           # 改配置：默认干跑+自动备份 → config restore 可回滚
+python3 $R config set <段.键> <值> [--yes] [--reason "…"]  # 改配置：默认干跑+自动备份 → config restore 可回滚；变更入账本
 python3 $R config restore [--list] [<备份名> --yes]   # 配置备份列表/还原（保留最近 10 份）
+python3 $R config log [--param 段.键] [--json]        # 参数变更账本（谁/何时/为何改，回滚与观察）
+python3 $R config observe <变更id> --note "…"         # 给某次变更补事后观察
 python3 $R verify-params [--json]                    # 参数采用对账：config 保存值 vs 运行证据（只读；conflict>0 → exit 3）
 python3 $R engagement [--days N]                    # 活跃度评估：老板反馈/主动@/批准草稿/报告数 → 判读是否降频
 python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）

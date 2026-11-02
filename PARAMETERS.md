@@ -129,7 +129,7 @@
 
 ## 操作手册（怎么改、怎么验）
 
-1. **改 config 参数** → 一律走 `radar.py config set <段.键> <值> [--yes]`（A3，2026-11-02）：**默认干跑**（打印 before→after，不写）；`--yes` 才写，**写前自动备份**（`config.json.bak-<ts>-<rand>`，保留最近 10 份）、写后重读校验；改错了 `config restore --list` 找备份 → `config restore <备份名> --yes` 一键还原（还原前会把当前值再备份一份，反悔可回）。敏感项（开关/白名单/频控）与死配置/漂移会显式提醒。`rate` 改 @ 频控同样自动备份。热加载，下一轮立即生效。敏感项（频控/开关/白名单）改完**必须告诉我**，涉及账号安全的改动最好等我确认。
+1. **改 config 参数** → 一律走 `radar.py config set <段.键> <值> [--yes]`（A3，2026-11-02）：**默认干跑**（打印 before→after，不写）；`--yes` 才写，**写前自动备份**（`config.json.bak-<ts>-<rand>`，保留最近 10 份）、写后重读校验；改错了 `config restore --list` 找备份 → `config restore <备份名> --yes` 一键还原（还原前会把当前值再备份一份，反悔可回）。敏感项（开关/白名单/频控）与死配置/漂移会显式提醒。`rate` 改 @ 频控同样自动备份。**每次变更自动写入参数变更账本**（A4，`interests/param-history.jsonl`：谁/何时/为何改、前后值；restore 记回滚行与实际变动的参数）；顺手 `--reason "为什么改"`，事后 `config log` 看时间线、`config observe <变更id> --note "效果如何"` 补观察——**reason/观察只记人明说的，不编造**。热加载，下一轮立即生效。敏感项（频控/开关/白名单）改完**必须告诉我**，涉及账号安全的改动最好等我确认。
 2. **改模型规则**（阈值/条数/流程）→ 改 `SKILL.md` + `charter.md` **两处一起**（本文件揭示：单改一处必漂移）。charter 是最终口径。
 3. **改 cron/schedule** → 走 `scripts/apply-cron.py`（all/valley），不是 config.json 说了算。
 4. **验证**：
