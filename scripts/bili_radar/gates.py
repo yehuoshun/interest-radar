@@ -6,10 +6,35 @@
 必须过这里的闸（干跑不触发；删除类操作不冷却）。
 """
 import json
+import shutil
 import time
+import uuid
 from datetime import datetime
 
 from bili_radar.core import die, read_config, state_dir
+
+
+def backup_config(d):
+    """写 config.json 前调用：复制现有文件为 config.json.bak-<ts>，保留最近 10 份。
+
+    返回备份路径；备份失败返回 None —— **调用方必须拒绝继续写**（对齐
+    SurfCore-Life 的「备份失败拒提交」）。轮转：超出 10 份删最旧。
+    """
+    f = d / "config.json"
+    if not f.exists():
+        return None
+    bak = d / f"config.json.bak-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
+    try:
+        shutil.copy2(f, bak)
+    except Exception:  # noqa: BLE001
+        return None
+    baks = sorted(d.glob("config.json.bak-*"))
+    for old in baks[:-10]:
+        try:
+            old.unlink()
+        except Exception:  # noqa: BLE001
+            pass
+    return bak
 
 
 def note_failure(d) -> int:

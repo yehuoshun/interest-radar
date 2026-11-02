@@ -13,7 +13,7 @@ from datetime import datetime
 from bili_radar.client import csrf_from_cookie, get, wbi_keys, wbi_sign
 from bili_radar.core import API, UA, cookie_path, die, load_cookie, read_config, state_dir
 from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fail,
-                   _write_gate, mention_log, note_failure, write_log)
+                   _write_gate, backup_config, mention_log, note_failure, write_log)
 
 
 def post_reply(bv: str, aid: int, text: str, reply_to, cookie: str, jct: str):
@@ -164,8 +164,11 @@ def cmd_rate(a):
     for k, v in (("per_round", a.per_round), ("per_hour", a.per_hour), ("per_day", a.per_day)):
         if v is not None:
             m[k] = int(v)
+    # A3（2026-11-02）：人工改配置必须带备份（备份失败拒写），事后可 config restore
+    if not backup_config(d):
+        die("备份 config.json 失败 —— 拒绝写入（备份失败不提交）", 8)
     cf.write_text(json.dumps(raw, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"✅ 频控已更新：per_round={m.get('per_round')} / per_hour={m.get('per_hour')} / per_day={m.get('per_day')}")
+    print(f"✅ 频控已更新：per_round={m.get('per_round')} / per_hour={m.get('per_hour')} / per_day={m.get('per_day')}（已自动备份）")
 
 
 def fetch_hot_comments(aid: int, cookie: str, ps: int = 10):

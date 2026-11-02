@@ -25,10 +25,11 @@ from bili_radar.core import API, UA, clean, cookie_path, die, load_cookie, read_
 
 # ── 写操作闸 ───────────────────────────────────────────────────
 from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fail, _write_gate,
-                   mention_log, note_failure, write_log)
+                   backup_config, mention_log, note_failure, write_log)
 
 # ── 域模块 ─────────────────────────────────────────────────────
 from bili_radar.browse import cmd_check, cmd_search, cmd_seen, cmd_sub, fetch_subtitle_text
+from bili_radar.cfg_tool import cmd_cfg_restore, cmd_cfg_set
 from bili_radar.comment import (anon_get, cmd_check_reply, cmd_comment, cmd_comment_check,
                      cmd_rate, cmd_reply, fetch_hot_comments, post_reply, visible_anon)
 from bili_radar.draft import cmd_draft, drafts_file, load_drafts, save_drafts
@@ -143,6 +144,19 @@ def main():
     s = sub.add_parser("verify-params")
     s.add_argument("--json", action="store_true", help="结构化输出（供 cron/脚本解析；conflict>0 → exit 3）")
     s.set_defaults(fn=cmd_verify_params)
+
+    s = sub.add_parser("config")
+    csub = s.add_subparsers(dest="cfg_action", required=True)
+    p = csub.add_parser("set")
+    p.add_argument("path", help="点分路径，如 mention.per_hour")
+    p.add_argument("value", help="新值（先按 JSON 解析，失败按字符串）")
+    p.add_argument("--yes", action="store_true", help="真正写入（默认干跑，只打印 before → after）")
+    p.set_defaults(fn=cmd_cfg_set)
+    p = csub.add_parser("restore")
+    p.add_argument("name", nargs="?", help="备份文件名（config.json.bak-<ts>）")
+    p.add_argument("--list", action="store_true", help="列出所有备份")
+    p.add_argument("--yes", action="store_true", help="真正恢复（默认干跑）")
+    p.set_defaults(fn=cmd_cfg_restore)
 
     s = sub.add_parser("engagement")
     s.add_argument("--days", type=int, default=14, help="统计窗口（默认 14 天）")
