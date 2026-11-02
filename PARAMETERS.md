@@ -60,9 +60,9 @@
 
 | 参数 | 运行值 | 权限 | 生效方式 | 状态 |
 |---|---|---|---|---|
-| `budget.max_subtitles_per_round` | 0 | 维护者 | —— | 💤 死配置：代码零引用。10-27 老板拍板「每轮字幕不限」时此键**本来就没被代码读过**（上限一直是模型按 SKILL.md 执行） |
+| `budget.max_subtitles_per_round` | — | 维护者 | —— | 🗑️ **B2 已删（2026-11-02）**：10-27 老板拍板「每轮字幕不限」后一直是死键，直接清除；历史注释保留在 config `_subtitle_note` |
 | `budget.max_push_per_round` | 1 | 维护者 | —— | ⚠️ 漂移：config 是 1（10-27 老板拍板「每轮最多推 1 条」），但 **SKILL.md 第 9 步仍写「只推 0-3 条」且没写 1** → 模型看到的真值是 0-3，可能推超 1 条 |
-| `budget.min_total_score` | 14 | 维护者 | —— | 💤 死配置：代码零引用。好在它只是镜像——真值在 SKILL.md 76「默认 ≥ 14/20」📐，模型看得见，**数值恰好一致** |
+| `budget.min_total_score` | 14 | 维护者 | —— | ✅ **B2 已接线（2026-11-02）**：`comment --score < 它` 会被代码拒发（硬闸）；日报最低分仍由 verify-params 对照 |
 | 四维打分（相关/新奇/实操/新鲜 各 0-5） | —— | 模型规则 | 📐 | SKILL.md 76 + charter.md 18 |
 | 新奇度 ≤1 直接砍 | —— | 模型规则 | 📐 | SKILL.md 76 |
 | 粗筛 ≥8 条候选 | —— | 模型规则 | 📐 | SKILL.md 流程第 4 步（省 token 用，非硬闸） |
@@ -105,9 +105,11 @@
 
 ## 🚨 本次审计发现的问题清单（2026-11-02）
 
-> **状态更新（同日晚些时候，A2 落地）**：新增 `radar.py verify-params` 参数采用对账，
-> 下表问题的 1/2（drift）和 3/4/5/6（not-consumed）已能**每次运行动态自检**、
-> conflict 才会让退出码非零（cron 可挂告警）。处置（对齐口径/清理）仍待老板拍板。
+> **状态更新（同日 B 组落地后）**：（1）`radar.py verify-params` 参数采用对账已上线——
+> 下表问题 1/2（drift）和 3/4/5/6（not-consumed）每次运行动态自检，conflict 才让退出码非零（cron 可挂告警）。
+> （2）**B1/B2（2026-11-02）已处置 #3 与 #4 中的 `min_total_score`**：敏感参数加审批闸（`config propose/approve`）、
+> `min_total_score` 接线为 `comment --score` 硬闸、`max_subtitles_per_round` 死键已删。
+> 剩余处置（口径对齐 #1/#2、min_score=17 幽灵值）仍待老板拍板。
 
 按影响排序，**前两条是真实行为级问题，其余是卫生问题**：
 
@@ -115,15 +117,15 @@
 |---|---|---|---|
 | 1 | ⚠️ 行为 | charter.md 39 行「每轮条数不限」（10-15 口径）vs SKILL.md 126「每轮 ≤1」（10-27 口径）**互斥，而 charter 是「以它为准」** | @ 推荐每轮 1 条还是不限，执行者无所适从 |
 | 2 | ⚠️ 行为 | `max_push_per_round=1` 但 SKILL.md 说「只推 0-3 条」 | 模型可能每轮推 3 条，超老板 10-27 定的「1 条」 |
-| 3 | 💤 卫生 | `budget.*` 三键全零引用（死配置） | 改配置无效果，误导维护者 |
+| 3 | 💤 卫生 | `budget.*` 三键一度全零引用 —— **目前已处置 2/3（B2）**：`max_subtitles_per_round` 已删；`min_total_score` 已接线为 `comment --score` 硬闸；剩 `max_push_per_round`（=1 vs SKILL.md 0-3）随 #2 一起裁 | 曾误导维护者；现 #2 待裁期间该键改写无效 |
 | 4 | 💤 卫生 | `mention.min_score=17` 幽灵值：SKILL.md 只写「≥ min_score」不写数值，**没有任何执行者知道 17** | @ 阈值实际退化到 14 |
 | 5 | 💤 卫生 | `mention.template` 死配置（fallback 硬编码） | 改模板不生效 |
 | 6 | ⚠️ 语义 | `mention.per_round` 未入代码闸（真正生效的是 per_hour） | 改 per_round 无效；当前靠 per_hour=1 碰巧兜住 |
 
-**处置建议（未动手，等老板定）**
-- **A. 对齐口径**（推荐先做，改动小）：SKILL.md / charter.md / config 三处统一「每轮 ≤1」「推送 ≤1」「min_score 数值写明 17」，并决定 min_score 是否下放为代码硬闸
-- **B. 清理死配置**：budget 段要么接线（代码读 + 推送时执行），要么删键留注释说明「模型规则，不在 config」
-- C/D/E 组无需动。
+**处置进度（B1/B2 已执行部分，2026-11-02）**
+- ✅ **B2 已做**：`max_subtitles_per_round` 键已删（config+模板）；`min_total_score` 接线为 `comment --score` 硬闸（低于它 code 拒发，exit 14）；verify-params 文案同步
+- ✅ **B1 已做**：敏感参数审批闸（`config propose/approve/reject`，25 键清单）
+- ⏳ 待老板定：① 口径对齐（#1 每轮 @ 条数、#2 推送条数；模板 `max_push_per_round=3` vs 真实 `1` 也归入 #2）；② `min_score=17` 幽灵值是否也下放为代码硬闸（参考 min_total_score 的做法）
 
 ---
 

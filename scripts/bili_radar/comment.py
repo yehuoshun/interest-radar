@@ -254,6 +254,16 @@ def cmd_comment(a):
         ⑦ 连续失败 3 次自动关 write.comment.enabled
     """
     seg = _write_gate("comment")
+    # B2（2026-11-02）：可选分数硬闸 —— 模型每轮评分后发 comment 时带 --score，
+    # 低于 budget.min_total_score 代码直接拒发（分数只在模型推理里，不带就不拦、只提醒）
+    if getattr(a, "score", None) is not None:
+        floor = int((read_config().get("budget") or {}).get("min_total_score", 14) or 14)
+        if a.score < floor:
+            die(f"闸⑧（B2）：分数 {a.score} < 下限 {floor}（budget.min_total_score）"
+                f"—— 拒绝发，不达标的视频别硬推", 14)
+    else:
+        print("ℹ️ 没带 --score：本次不做分数闸校验（模型评分后建议带上，代码会硬校验）",
+              file=sys.stderr)
     text = (a.text or "").strip()
     if not text:
         die("闸③：正文为空 —— 拒绝发", 7)
@@ -294,15 +304,6 @@ def cmd_comment(a):
         die(f"发评论请求失败：{type(e).__name__}: {e}", 8)
     if res.get("code") != 0:
         n = _write_fail(d, "comment")
-        if n >= 3:
-            cf = d / "config.json"
-            try:
-                cfgall = json.loads(cf.read_text(encoding="utf-8"))
-                cfgall.setdefault("write", {}).setdefault("comment", {})["enabled"] = False
-                cf.write_text(json.dumps(cfgall, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-                print("⚠️ 连续 3 次自发评论失败 → 已自动关掉 write.comment.enabled（防账号被爆），等本人来看", file=sys.stderr)
-            except Exception:  # noqa: BLE001
-                pass
         die(f"发评论被拒：code={res.get('code')} msg={res.get('message')}（累计失败 {n} 次）", 9)
     rpid = ((res.get("data") or {}).get("rpid_str") or (res.get("data") or {}).get("rpid"))
     time.sleep(3)

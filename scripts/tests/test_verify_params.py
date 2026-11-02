@@ -202,9 +202,10 @@ class TestVerifyParams(unittest.TestCase):
         write_cfg(self.tmp)
         _, out, _ = run(self.tmp)
         for marker in ("mention.per_round", "mention.min_score",
-                       "mention.template", "budget.max_subtitles_per_round"):
+                       "mention.template"):
             self.assertIn("not-consumed", out)
             self.assertIn(marker, out)
+        self.assertNotIn("budget.max_subtitles_per_round", out)  # B2 已删键
         self.assertIn("drift:", out)
         self.assertIn("charter.md:39", out)  # 问题 1 的口径互斥
         self.assertIn("budget.max_push_per_round", out)  # 问题 2

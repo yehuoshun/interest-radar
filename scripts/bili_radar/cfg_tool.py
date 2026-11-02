@@ -53,8 +53,7 @@ KNOWN_NOTES = [
     (("mention", "per_round"), "💤 死配置：代码闸只读 per_hour/per_day，这个值改了不生效（PARAMETERS.md #6）"),
     (("mention", "min_score"), "💤 死配置：没有任何执行者知道这个值（PARAMETERS.md #4）"),
     (("mention", "template"), "💤 死配置：comment.py 用硬编码兜底文案（PARAMETERS.md #5）"),
-    (("budget", "max_subtitles_per_round"), "💤 死配置：代码零引用，改了不生效（PARAMETERS.md #3）"),
-    (("budget", "min_total_score"), "📐 模型规则镜像：模型读的是 SKILL.md 文本（14），config 只是镜像（PARAMETERS.md #3）"),
+    (("budget", "min_total_score"), "✅ B2 硬闸阈值（2026-11-02 转正）：comment --score < 它会被 code 拒发"),
     (("budget", "max_push_per_round"), "⚠️ 漂移：SKILL.md 仍写「只推 0-3 条」，模型看到的真值是 0-3（PARAMETERS.md #2）"),
 ]
 # 特别提示：闸⑥实际生效的是 per_hour（rate 快捷面板也在改它）

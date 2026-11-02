@@ -52,7 +52,7 @@ python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认�
 python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python3 $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python3 $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
-python3 $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸）
+python3 $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸；--score 低于 budget.min_total_score 会被拒，exit 14）
 python3 $R dynamic-del --dyn-id 1260… --yes          # 删掉发错的动态
 python3 $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_mid 白名单）
 python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）

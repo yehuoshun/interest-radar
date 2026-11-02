@@ -30,8 +30,9 @@ NOT_CONSUMED = [
     ("mention.per_round", "代码闸只读 per_hour/per_day，per_round 从不入闸", "P#6"),
     ("mention.min_score", "全代码+tests 零引用；SKILL.md 只写「≥ min_score」不写数值，无人知道 17", "P#4"),
     ("mention.template", "comment.py 用硬编码兜底「@{name} 这个值得看一眼」", "P#5"),
-    ("budget.max_subtitles_per_round", "代码零引用（模型按 SKILL.md 的「每轮不限」执行）", "P#3"),
 ]
+
+# max_subtitles_per_round：B2（2026-11-02）已从 config 删除（老板 10-27 已拍板取消字幕上限）
 
 # ── 静态表：文档口径互斥（PARAMETERS.md 问题清单 1/2）──────────────
 DRIFTS = [
@@ -155,17 +156,20 @@ def _check_report_score(cfg, d):
     today = datetime.now().strftime("%Y-%m-%d")
     f = d / "out" / f"{today}.md"
     if not f.exists():
-        return [("budget.min_total_score", f"{saved}（镜像 SKILL.md:76 文本）",
+        return [("budget.min_total_score",
+                 f"{saved}（B2 硬闸：comment --score < 它会被 code 拒）",
                  "今天还没有日报", "pending")]
     scores = []
     for line in f.read_text(encoding="utf-8").splitlines():
         for m in SCORE_RE.finditer(line):
             scores.append(sum(map(int, m.groups())))
     if not scores:
-        return [("budget.min_total_score", f"{saved}（镜像 SKILL.md:76 文本）",
+        return [("budget.min_total_score",
+                 f"{saved}（B2 硬闸：comment --score < 它会被 code 拒）",
                  "日报里没解析到打分元组", "pending")]
     mn = min(scores)
-    return [("budget.min_total_score", f"{saved}（镜像 SKILL.md:76 文本）",
+    return [("budget.min_total_score",
+             f"{saved}（B2 硬闸：comment --score < 它会被 code 拒）",
              f"日报 {len(scores)} 条留档最低分 {mn}",
              "adopted" if mn >= saved else "conflict")]
 

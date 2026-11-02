@@ -112,6 +112,7 @@ def main():
     s = sub.add_parser("comment")
     s.add_argument("--bv", required=True)
     s.add_argument("--text", required=True, help="自发评论正文（≤200 字，无需 @ 主号）")
+    s.add_argument("--score", type=int, help="B2：候选综合评分（低于 budget.min_total_score 会被拒发）")
     s.add_argument("--yes", action="store_true", help="真正发出（默认干跑）")
     s.set_defaults(fn=cmd_comment)
 
