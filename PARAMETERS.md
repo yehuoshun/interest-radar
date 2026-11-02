@@ -109,23 +109,26 @@
 > 下表问题 1/2（drift）和 3/4/5/6（not-consumed）每次运行动态自检，conflict 才让退出码非零（cron 可挂告警）。
 > （2）**B1/B2（2026-11-02）已处置 #3 与 #4 中的 `min_total_score`**：敏感参数加审批闸（`config propose/approve`）、
 > `min_total_score` 接线为 `comment --score` 硬闸、`max_subtitles_per_round` 死键已删。
-> 剩余处置（口径对齐 #1/#2、min_score=17 幽灵值）仍待老板拍板。
+> （3）**口径裁决（11-02 老板拍板 AA）**：#1 统一「每轮 @ ≤1」（10-27）；#2 语义分层（@ ≤1 / 汇报候选 0-3）并加注；
+> 模板 `max_push_per_round` 3→1 对齐；**cron 每时轮 prompt 的「每轮最多 3 条字幕」已修**（#7：10-27 的「字幕不限」此前 6 天从未生效，现已改「每轮不限（10-27 拍板）」）。
+> 剩余处置（min_score=17 幽灵值是否下放硬闸）仍待老板拍板。
 
 按影响排序，**前两条是真实行为级问题，其余是卫生问题**：
 
 | # | 级别 | 问题 | 影响 |
 |---|---|---|---|
-| 1 | ⚠️ 行为 | charter.md 39 行「每轮条数不限」（10-15 口径）vs SKILL.md 126「每轮 ≤1」（10-27 口径）**互斥，而 charter 是「以它为准」** | @ 推荐每轮 1 条还是不限，执行者无所适从 |
-| 2 | ⚠️ 行为 | `max_push_per_round=1` 但 SKILL.md 说「只推 0-3 条」 | 模型可能每轮推 3 条，超老板 10-27 定的「1 条」 |
+| 1 | ✅ 已处置 | charter.md 39 行「每轮条数不限」（10-15 口径）vs SKILL.md 126「每轮 ≤1」（10-27 口径）**互斥，而 charter 是「以它为准」** | **11-02 老板拍板 AA：统一 10-27 口径（每轮 ≤1）**，charter:39-40 已改写同步；SKILL.md/config/cron 本就是 10-27 → 四处统一 |
+| 2 | ✅ 已澄清 | `max_push_per_round=1` 但 SKILL.md 说「只推 0-3 条」——**审计时误判：两处「推送」语义不同** | **11-02 老板拍板 AA：语义分层**——config `max_push` = @ 主号 ≤1（10-27 `_push_note`）；SKILL.md:84 / charter:24「0-3 条」= 汇报候选清单（≠ @）。两处已加注防再漂；模板 `max_push_per_round` 3→1 对齐（此前模板与真实 config 漂移） |
 | 3 | 💤 卫生 | `budget.*` 三键一度全零引用 —— **目前已处置 2/3（B2）**：`max_subtitles_per_round` 已删；`min_total_score` 已接线为 `comment --score` 硬闸；剩 `max_push_per_round`（=1 vs SKILL.md 0-3）随 #2 一起裁 | 曾误导维护者；现 #2 待裁期间该键改写无效 |
 | 4 | 💤 卫生 | `mention.min_score=17` 幽灵值：SKILL.md 只写「≥ min_score」不写数值，**没有任何执行者知道 17** | @ 阈值实际退化到 14 |
 | 5 | 💤 卫生 | `mention.template` 死配置（fallback 硬编码） | 改模板不生效 |
 | 6 | ⚠️ 语义 | `mention.per_round` 未入代码闸（真正生效的是 per_hour） | 改 per_round 无效；当前靠 per_hour=1 碰巧兜住 |
 
-**处置进度（B1/B2 已执行部分，2026-11-02）**
+**处置进度（B1/B2 + 口径裁决已执行部分，2026-11-02）**
 - ✅ **B2 已做**：`max_subtitles_per_round` 键已删（config+模板）；`min_total_score` 接线为 `comment --score` 硬闸（低于它 code 拒发，exit 14）；verify-params 文案同步
 - ✅ **B1 已做**：敏感参数审批闸（`config propose/approve/reject`，25 键清单）
-- ⏳ 待老板定：① 口径对齐（#1 每轮 @ 条数、#2 推送条数；模板 `max_push_per_round=3` vs 真实 `1` 也归入 #2）；② `min_score=17` 幽灵值是否也下放为代码硬闸（参考 min_total_score 的做法）
+- ✅ **口径 AA 裁决已做（11-02）**：① #1 统一 10-27「每轮 @ ≤1」（charter:39-40 已同步）② #2 语义分层 + 加注（SKILL.md:84 / charter:24）③ 模板 `max_push_per_round` 3→1 ④ #7 cron prompt「最多 3 条字幕」→「每轮不限」——四改点到：charter / SKILL.md / 模板 / cron job 60d88f54
+- ⏳ 待老板定：**#4 `min_score=17` 幽灵值是否也下放为代码硬闸**（参考 min_total_score 的做法）；#5/#6 死配置清理（template / per_round 键）
 
 ---
 

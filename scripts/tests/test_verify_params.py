@@ -80,7 +80,7 @@ class TestVerifyParams(unittest.TestCase):
         self.assertIn("无写记录", out)
         self.assertIn("今天还没有日报", out)
         self.assertIn("无已批草稿", out)
-        self.assertIn("推送证据在微信侧", out)
+        self.assertIn("本地无推送账本可自证", out)
         self.assertIn("❌ conflict 0", out)
 
     # ── @ 频控 ─────────────────────────────────────────────────────
@@ -198,7 +198,8 @@ class TestVerifyParams(unittest.TestCase):
         self.assertEqual(data["conflict_exit"], 0)
 
     # ── 静态表：死配置 + 漂移 ─────────────────────────────────────
-    def test_not_consumed_and_drift_listed(self):
+    def test_not_consumed_and_no_more_drift(self):
+        """AA 裁决后（2026-11-02）：口径互斥全消，drift=0；死配置项照旧列出。"""
         write_cfg(self.tmp)
         _, out, _ = run(self.tmp)
         for marker in ("mention.per_round", "mention.min_score",
@@ -206,9 +207,11 @@ class TestVerifyParams(unittest.TestCase):
             self.assertIn("not-consumed", out)
             self.assertIn(marker, out)
         self.assertNotIn("budget.max_subtitles_per_round", out)  # B2 已删键
-        self.assertIn("drift:", out)
-        self.assertIn("charter.md:39", out)  # 问题 1 的口径互斥
-        self.assertIn("budget.max_push_per_round", out)  # 问题 2
+        # #1/#2 澄清后：不再有「口径互斥」drift
+        self.assertNotIn("charter.md:39", out)
+        # max_push_per_round → 文档镜像（pending，不再 drift）
+        self.assertIn("budget.max_push_per_round", out)
+        self.assertIn("文档镜像", out)
 
     # ── 配置段缺失要健壮（空 config.json）────────────────────────
     def test_missing_cfg_sections_no_crash(self):

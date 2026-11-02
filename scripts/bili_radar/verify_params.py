@@ -34,11 +34,10 @@ NOT_CONSUMED = [
 
 # max_subtitles_per_round：B2（2026-11-02）已从 config 删除（老板 10-27 已拍板取消字幕上限）
 
-# ── 静态表：文档口径互斥（PARAMETERS.md 问题清单 1/2）──────────────
-DRIFTS = [
-    ("mention.per_round 口径", "charter.md:39「每轮条数不限」(10-15) vs SKILL.md:126「每轮 ≤1」(10-27)—— 互斥"),
-    ("budget.max_push_per_round", "config=1 vs SKILL.md「只推 0-3 条」—— 模型看到的真值是 0-3"),
-]
+# ── 静态表：文档口径互斥（PARAMETERS.md 问题清单 1/2）──
+# 2026-11-02 老板拍板（AA）：#1 统一 10-27 口径（每轮 ≤1，charter 已同步）；
+# #2 语义分层澄清（config max_push=@主号≤1，SKILL.md 0-3=汇报候选）→ 互斥解除，此表清空。
+DRIFTS = []
 
 # 日报留档条目的四维打分元组：（5/4/4/5）
 SCORE_RE = re.compile(r"[（(](\d)\s*[/／]\s*(\d)\s*[/／]\s*(\d)\s*[/／]\s*(\d)\s*[)）]")
@@ -175,9 +174,17 @@ def _check_report_score(cfg, d):
 
 
 def _check_push(cfg):
+    """max_push_per_round：10-27 语义 = @ 主号每轮 ≤1，已文本化进 SKILL.md:131 频控。
+
+    代码侧 @ 闸读的是 mention.per_hour（config 里 max_push 零引用）→ 本质是
+    文档镜像（与 min_total_score 同族）：config 与文档一致（都 1），但本地无
+    「推送账本」可自证 → pending（诚实：无法动态核对）。
+    """
     saved = int((cfg.get("budget") or {}).get("max_push_per_round", 1) or 0)
-    return [("budget.max_push_per_round", str(saved),
-             "推送证据在微信侧，本地无账本（pending，不硬判）", "pending")]
+    return [("budget.max_push_per_round",
+             f"{saved}（📐 文档镜像：@ 主号每轮 ≤1 已文本化进 SKILL.md:131 频控）",
+             "config 与文档一致（10-27 口径）；本地无推送账本可自证，pending 不硬判",
+             "pending")]
 
 
 def _collect_static(cfg):
