@@ -29,7 +29,8 @@ from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fai
 
 # ── 域模块 ─────────────────────────────────────────────────────
 from bili_radar.browse import cmd_check, cmd_search, cmd_seen, cmd_sub, fetch_subtitle_text
-from bili_radar.cfg_tool import cmd_cfg_restore, cmd_cfg_set
+from bili_radar.cfg_tool import (cmd_cfg_approve, cmd_cfg_proposals, cmd_cfg_propose,
+                   cmd_cfg_reject, cmd_cfg_restore, cmd_cfg_set)
 from bili_radar.history import (append_change, append_observe, append_rollback,
                    cmd_cfg_log, cmd_cfg_observe, diff_params)
 from bili_radar.comment import (anon_get, cmd_check_reply, cmd_comment, cmd_comment_check,
@@ -170,6 +171,22 @@ def main():
     p.add_argument("change_id", help="要补观察的那次变更 id（config log 里看）")
     p.add_argument("--note", required=True, help="观察内容（后来效果如何）")
     p.set_defaults(fn=cmd_cfg_observe)
+    p = csub.add_parser("propose")
+    p.add_argument("path", help="点分路径，如 mention.per_hour")
+    p.add_argument("value", help="想改成的值（先按 JSON 解析，失败按字符串）")
+    p.add_argument("--reason", help="申请理由（记入申请与账本）")
+    p.set_defaults(fn=cmd_cfg_propose)
+    p = csub.add_parser("approve")
+    p.add_argument("id", help="申请 id（config proposals 看）")
+    p.set_defaults(fn=cmd_cfg_approve)
+    p = csub.add_parser("reject")
+    p.add_argument("id", help="申请 id（config proposals 看）")
+    p.add_argument("--reason", help="驳回理由")
+    p.set_defaults(fn=cmd_cfg_reject)
+    p = csub.add_parser("proposals")
+    p.add_argument("--all", action="store_true", help="含已批/已驳的历史")
+    p.add_argument("--json", action="store_true", help="结构化输出")
+    p.set_defaults(fn=cmd_cfg_proposals)
 
     s = sub.add_parser("engagement")
     s.add_argument("--days", type=int, default=14, help="统计窗口（默认 14 天）")

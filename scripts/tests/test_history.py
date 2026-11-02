@@ -200,7 +200,8 @@ class TestWiring(unittest.TestCase):
         code, out, _ = run(R.cmd_cfg_set, Namespace(path="mention.per_hour",
                                                     value="2", yes=True,
                                                     reason="一小时一条太多",
-                                                    actor="boss"))
+                                                    actor="boss",
+                                                    approved_by="测试：老板微信拍板"))
         self.assertEqual(code, 0)
         rows = read_hist(self.tmp)
         self.assertEqual(len(rows), 1)
@@ -218,7 +219,8 @@ class TestWiring(unittest.TestCase):
 
     def test_restore_writes_rollback_row(self):
         run(R.cmd_cfg_set, Namespace(path="mention.per_hour", value="2",
-                                     yes=True, reason=None, actor="agent"))
+                                     yes=True, reason=None, actor="agent",
+                                     approved_by="测试：老板微信拍板"))
         bak = sorted(p.name for p in self.tmp.glob("config.json.bak-*"))[0]
         run(R.cmd_cfg_restore, Namespace(name=bak, list=False, yes=True))
         rows = read_hist(self.tmp)
@@ -228,7 +230,8 @@ class TestWiring(unittest.TestCase):
 
     def test_restore_dry_run_no_history(self):
         run(R.cmd_cfg_set, Namespace(path="mention.per_hour", value="2",
-                                     yes=True, reason=None, actor="agent"))
+                                     yes=True, reason=None, actor="agent",
+                                     approved_by="测试：老板微信拍板"))
         bak = sorted(p.name for p in self.tmp.glob("config.json.bak-*"))[0]
         run(R.cmd_cfg_restore, Namespace(name=bak, list=False, yes=False))
         kinds = [r["kind"] for r in read_hist(self.tmp)]

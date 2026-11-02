@@ -30,13 +30,16 @@ def setup(tmp: Path):
                                         + "\n", encoding="utf-8")
 
 
-def run_set(tmp, path, value, yes=False):
+def run_set(tmp, path, value, yes=False, **kw):
     out, err = StringIO(), StringIO()
     old = sys.stdout, sys.stderr
     sys.stdout, sys.stderr = out, err
     code = 0
     try:
-        R.cmd_cfg_set(Namespace(path=path, value=value, yes=yes))
+        R.cmd_cfg_set(Namespace(path=path, value=value, yes=yes,
+                                approved_by=kw.pop("approved_by", "测试：老板口头批准"),
+                                reason=kw.pop("reason", None), actor=kw.pop("actor", "agent"),
+                                **kw))
     except SystemExit as e:
         code = e.code or 0
     finally:

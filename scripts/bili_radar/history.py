@@ -34,11 +34,16 @@ def _ts() -> str:
     return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def append_change(d, *, actor: str, param: str, before, after, reason=None):
-    """记一次参数变更（set / rate 真写后调用）。actor: boss|agent|auto。"""
+def append_change(d, *, actor: str, param: str, before, after, reason=None,
+                   approved_by=None):
+    """记一次参数变更（set / rate / approve 真写后调用）。actor: boss|agent|auto。
+
+    approved_by：敏感项直改时的老板批准留痕（原话或 approve 的申请 id）。
+    """
     rec = {"kind": "change", "id": _nid("chg"), "ts": _ts(), "actor": actor,
            "param": param, "before": before, "after": after,
-           "reason": reason, "rollback_to": None, "changed": None}
+           "reason": reason, "approved_by": approved_by, "rollback_to": None,
+           "changed": None}
     with hist_file(d).open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
     return rec["id"]
@@ -130,6 +135,8 @@ def cmd_cfg_log(a):
                   f"{_fmt(r.get('before'))} → {_fmt(r.get('after'))}  by {r.get('actor')}")
             if r.get("reason"):
                 print(f"         理由：{r['reason']}")
+            if r.get("approved_by"):
+                print(f"         批准：{r['approved_by']}")
         elif r.get("kind") == "rollback":
             print(f"[{ts}] 回滚 {r['id']}  整份配置 → 备份 {r.get('rollback_to')}")
             for p, b, af in (r.get("changed") or [])[:8]:

@@ -93,7 +93,7 @@ class TestAtomicWrite(unittest.TestCase):
     def test_set_via_atomic_end_to_end(self):
         """回归：cfg_tool.cmd_cfg_set 走 atomic 后行为不变。"""
         R.cmd_cfg_set(Namespace(path="mention.per_hour", value="2", yes=True,
-                                reason=None, actor="agent"))
+                                reason=None, actor="agent", approved_by="测试：老板口头批准"))
         self.assertEqual(read_cfg(self.tmp)["mention"]["per_hour"], 2)
         self.assertEqual(list(self.tmp.glob("config.json.tmp-*")), [])
 
