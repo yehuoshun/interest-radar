@@ -5,7 +5,7 @@
 
 一个 [OpenClaw](https://docs.openclaw.ai) 技能：读你的**兴趣档案** → 按兴趣线（主题 + 邻域）搜 → **读字幕原文**（不看摘要）→ 四维打分 → 判重 → 写日报 → **只把够格的 0-3 条推给你**。
 
-> 用法：**给 agent 看的操作手册在 [`SKILL.md`](SKILL.md)**（命令速查、一轮流程、报告格式）；**判据与红线在 [`templates/charter.md`](templates/charter.md)**（四维打分、阈值、字幕预算口径）。本 README 只讲它是什么、为什么这么设计。
+> 用法：**给 agent 看的操作手册在 [`SKILL.md`](SKILL.md)**（命令速查、一轮流程、报告格式）；**判据与红线在 [`templates/charter.md`](templates/charter.md)**（四维打分、阈值、字幕预算口径）。**参数地图在 [`PARAMETERS.md`](PARAMETERS.md)**（2026-11-02 新增：全参数接线审计——归谁管、怎么生效、漂移/死配置清单）。本 README 只讲它是什么、为什么这么设计。
 
 ## 它和"关键词雷达"的区别
 
