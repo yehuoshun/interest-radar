@@ -265,6 +265,15 @@ def cmd_comment(a):
         print("ℹ️ 没带 --score：本次不做分数闸校验（模型评分后建议带上，代码会硬校验）",
               file=sys.stderr)
     text = (a.text or "").strip()
+    # 2026-11-13 实证踩坑：@ 主号走错了子命令（用 comment 代替 reply）不会报错，
+    # 但这条评论只记 write-log，不进 mention-log、不查「同一视频只发一次」，
+    # 于是 mention 频控形同不存在 —— 干跑时把人往正确命令上引一句。
+    _nick = str((read_config().get("mention") or {}).get("name") or "").strip()
+    if _nick and f"@{_nick}" in text and not getattr(a, "reply_to", None):
+        print(f"⚠️ 正文里有 @{_nick}：这条走的是「自发评论」（只记 write-log）。"
+              f"要 @ 主号请改用 `radar.py reply --bv {a.bv} --text \"@{_nick} …\"`"
+              f"——那条才查 mention 频控和「同一视频只发一次」。",
+              file=sys.stderr)
     if not text:
         die("闸③：正文为空 —— 拒绝发", 7)
     if len(text) > 200:

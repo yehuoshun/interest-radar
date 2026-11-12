@@ -63,7 +63,7 @@ python $R config log [--param 段.键] [--json]        # 参数变更账本（�
 python $R config observe <变更id> --note "…"         # 给某次变更补事后观察
 python $R verify-params [--json]                    # 参数采用对账：config 保存值 vs 运行证据（只读；conflict>0 → exit 3）
 python $R engagement [--days N]                    # 活跃度评估：老板反馈/主动@/批准草稿/报告数 → 判读是否降频
-python $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
+python $R reply --bv BV1xxx                        # **@ 主号 只走这个**（默认干跑；查 mention 频控 + 同一视频只发一次）
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
@@ -72,6 +72,11 @@ python $R dynamic-del --dyn-id 1260… --yes          # 删掉发错的动态
 python $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_mid 白名单）
 python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
 ```
+
+> ⚠️ **`comment` ≠ `reply`（2026-11-13 踩过）**：两者都真能发出带 `@昵称` 的评论，但 `comment` 是「自发评论」，
+> 只记 `write-log.jsonl`，**不写 `mention-log.jsonl`、不查「同一视频只发一次」**——于是 mention 频控（每轮/每小时 ≤1）
+> 形同不存在，`radar.py rate` 也永远显示 0。@ 主号**必须**用 `reply`。`comment` 现在会在正文含 `@mention.name` 时
+> 打一行 stderr 提醒，但别指望它拦你。
 
 - cookie 文件：`<工作区>/config/bilibili_cookies.txt`（工作区布局 `<workspace>/{code,work}/<项目>`；小号；**失效先跑 `scripts/bili_qr_login.py` 扫码自救**，见下节，不用手动导出）
 - 脚本只做确定性的事；**判断一律由模型做**
