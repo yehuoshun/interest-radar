@@ -3,7 +3,7 @@
 > 每天替你扫一轮，**只挑真正值得占用你一次注意力的东西**。
 > 不是搜索机器人 —— 判据只有一句话：**这条值不值得占用你一次注意力？**
 
-一个 [OpenClaw](https://docs.openclaw.ai) 技能：读你的**兴趣档案** → 按兴趣线（主题 + 邻域）搜 → **读字幕原文**（不看摘要）→ 四维打分 → 判重 → 写日报 → **只把够格的 0-3 条推给你**。
+一个 agent 技能（本机 DSH 直接可用，也能当纯 CLI 跑；2026-11-13 去掉了 OpenClaw 依赖）：读你的**兴趣档案** → 按兴趣线（主题 + 邻域）搜 → **读字幕原文**（不看摘要）→ 四维打分 → 判重 → 写日报 → **只把够格的 0-3 条推给你**。
 
 > 用法：**给 agent 看的操作手册在 [`SKILL.md`](SKILL.md)**（命令速查、一轮流程、报告格式）；**判据与红线在 [`templates/charter.md`](templates/charter.md)**（四维打分、阈值、字幕预算口径）。**参数地图在 [`PARAMETERS.md`](PARAMETERS.md)**（2026-11-02 新增：全参数接线审计——归谁管、怎么生效、漂移/死配置清单）。本 README 只讲它是什么、为什么这么设计。
 
@@ -54,56 +54,58 @@
 ## 测试
 
 ```bash
-cd scripts && python3 -m unittest discover -s tests -v   # 37 用例 / 零网络 / 零 cookie / <0.1s
+cd scripts && python -m unittest discover -s tests -v   # 114 用例 / 零网络 / 零 cookie / <1s
 ```
 
 GitHub Actions 在 push 与 PR 上跑同一套：`.github/workflows/ci.yml`（语法检查 + 单测 + CLI 冒烟）。
 
 ## 快速开始
 
-前置：Python 3.10+；一个 B站小号（**读字幕必须登录**，匿名拿不到字幕）。
+前置：Python 3.10+（本机 3.12）；一个 B站小号（**读字幕必须登录**，匿名拿不到字幕）。
 
 ```bash
-# 1. 导出小号 cookie 到（任一行的 key=value 形式）
-#    ~/.openclaw/secrets/bilibili-cookies.txt   ← 至少要有 SESSDATA / bili_jct / buvid3
-#    cookie 失效（-101）时不用手动导出：跑 scripts/bili_qr_login.py，二维码给本人扫码即换新登录态
-python3 scripts/radar.py check          # 校验：打印昵称 = 有效
+# 1. 初始化状态目录（拷模板 + 写默认 config.json，写操作开关全关）
+python scripts/init.py
 
-# 2. 把模板放进状态目录，写第一条兴趣线
-mkdir -p ~/.openclaw/workspace/interests
-cp templates/charter.md templates/profile.md ~/.openclaw/workspace/interests/
+# 2. 放 cookie：<工作区>/config/bilibili_cookies.txt
+#    一行 k=v; k=v，至少有 SESSDATA / bili_jct / DedeUserID
+#    失效（-101）时不用手动导出：python scripts/bili_qr_login.py 扫码换新
+python scripts/radar.py check          # 校验：打印昵称 = 有效
 
-# 3. 定时（OpenClaw cron；建议放在模型优惠的谷时段，比如每天 08:00）
-#    独立 session + 便宜模型 + 工具白名单 read/write/exec
+# 3. 写第一条兴趣线 state/profile.md，然后开跑
+python scripts/radar.py search --kw "关键词" --days 7
 ```
+
+定时不走系统 cron：由 agent 用 DSH 的 `schedule_create` 建任务，rrule 与 prompt 见下节。
 
 ## 调度：all / 梁文谷
 
 ```bash
-python3 scripts/apply-cron.py          # 看当前模式
-python3 scripts/apply-cron.py all      # 全天每小时
-python3 scripts/apply-cron.py valley   # 梁文谷：只在 DeepSeek 谷时的小时跑
+python scripts/schedule.py valley              # 打印谷时模式的 DTSTART+RRULE 与 prompt
+python scripts/schedule.py all --rrule-only    # 全天每小时，只要 rrule
+python scripts/schedule.py valley --minute 43  # 换分钟偏移（默认 17，避开整点）
 ```
 
+把打印出来的 rrule + prompt 交给 `schedule_create`（`target=this_session` 静默提醒式，`new_once` 每次开新会话写报告）。
 谷时口径（DeepSeek 官方）：**工作日 9:00-12:00、14:00-18:00 是高峰，其余（含整个周末）都是谷时**。
 
 ## 命令速查
 
 ```bash
-R=skills/interest-radar/scripts/radar.py
-python3 $R check                                     # cookie 是否有效
-python3 $R search --kw "关键词" --num 20 --days 7    # 搜（order: pubdate|click|totalrank）
-python3 $R sub BV1xxxxxxxxx                          # 字幕全文；无字幕打印 NO_SUBTITLE
-python3 $R seen check BV1xxx                         # SEEN / NEW
-python3 $R seen add 2026-10-15 BV1xxx keep 标题       # 记判重
-python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
-python3 $R stats                                     # 权重汇总 + 已看条数
-python3 $R reply --bv BV1xxx [--text "@昵称 …"]        # 评论 @ 主号（默认干跑，--yes 真发）
-python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的
-python3 $R dm --new-only                             # 私信：新于水位线的（只读不回）
-python3 $R dynamic --text "…" [--yes]                 # 发动态（≤200 字，默认干跑）
-python3 $R dynamic-del --dyn-id 1260… [--yes]         # 删掉发错的动态
-python3 $R msg --mid 239028467 --text "…" [--yes]     # 私信（只准发 allow_mid 白名单）
+R=scripts/radar.py
+python $R check                                     # cookie 是否有效
+python $R search --kw "关键词" --num 20 --days 7    # 搜（order: pubdate|click|totalrank）
+python $R sub BV1xxxxxxxxx                          # 字幕全文；无字幕打印 NO_SUBTITLE
+python $R seen check BV1xxx                         # SEEN / NEW
+python $R seen add 2026-10-15 BV1xxx keep 标题       # 记判重
+python $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
+python $R stats                                     # 权重汇总 + 已看条数
+python $R reply --bv BV1xxx [--text "@昵称 …"]        # 评论 @ 主号（默认干跑，--yes 真发）
+python $R notify --new-only                         # 谁找我：@我的 / 回复我的
+python $R dm --new-only                             # 私信：新于水位线的（只读不回）
+python $R dynamic --text "…" [--yes]                 # 发动态（≤200 字，默认干跑）
+python $R dynamic-del --dyn-id 1260… [--yes]         # 删掉发错的动态
+python $R msg --mid 239028467 --text "…" [--yes]     # 私信（只准发 allow_mid 白名单）
 ```
 
 环境变量：`INTERESTS_DIR`（状态目录）、`BILI_COOKIE_FILE`（cookie 文件）。
@@ -112,9 +114,15 @@ python3 $R msg --mid 239028467 --text "…" [--yes]     # 私信（只准发 all
 
 ```
 SKILL.md              技能说明书（给 agent 看的操作手册）
-scripts/radar.py      确定性那一半：取数 / 判重 / 记反馈 / 权重
-templates/profile.md  兴趣档案模板（空起步）
-templates/charter.md  章程模板：判据、四维打分、红线
+AGENT.md              代码图谱：模块 / 符号 / 接线 / 键名（改代码前看）
+PARAMETERS.md         参数地图：全参数接线审计、漂移与死配置
+scripts/radar.py      CLI 入口：取数 / 判重 / 记反馈 / 权重
+scripts/init.py       初始化 state/（拷模板 + 默认 config.json）
+scripts/schedule.py   调度：打印 rrule + prompt 给 DSH
+scripts/bili_radar/   实现（core / client / gates + 各域模块）
+scripts/tests/        114 用例（unittest，零网络）
+state/                运行态（gitignore）：profile / charter / config / out / frames
+templates/            profile.md、charter.md、schedule-prompt.md
 ```
 
 ## 红线
@@ -127,6 +135,10 @@ templates/charter.md  章程模板：判据、四维打分、红线
 ## 依赖
 
 纯标准库（`urllib` + `hashlib`），无第三方包。字幕走 B站 官方接口（`x/player/v2` → 字幕 CDN），搜索走 `wbi` 签名接口。
+
+两个可选能力：
+- **扫码出图**：`scripts/bili_qr_login.py` 需要 `qrcode`（`python -m pip install "qrcode[pil]"`）；没装只影响二维码 PNG，登录 URL 照样打印（exit 4）。
+- **抽帧看画面**：`scripts/frames.py` 需要 `ffmpeg` 在 PATH（或 `FFMPEG` 环境变量指过去）。本机目前没有 ⇒ 该功能不可用，其余不受影响。
 
 已知限制：搜索接口对数据中心出口 IP 有风控（会返回 `v_voucher`），家宽/住宅 IP 一般没问题；`-412` 是通用风控，脚本会直接报错让你换 IP 或稍后再试。
 

@@ -4,7 +4,7 @@
 
 实现：bili_radar/media/frames.py（流程）+ bili_radar/media/mp4_sparse.py（稀疏下载）
 
-用法不变：python3 scripts/frames.py --bv BV1xxx [--strip] ...
+用法不变：python scripts/frames.py --bv BV1xxx [--strip] ...
 """
 import sys
 from pathlib import Path

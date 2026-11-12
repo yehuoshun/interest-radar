@@ -11,10 +11,10 @@
 
 | 我想… | 去哪 |
 |---|---|
-| 跑命令 | `python3 scripts/radar.py <子命令>`（入口薄壳 `scripts/radar.py`） |
+| 跑命令 | `python scripts/radar.py <子命令>`（入口薄壳 `scripts/radar.py`） |
 | 看一条命令怎么实现的 | 第 3 节「命令 → 函数」表 |
 | 改一个功能 | 第 4 节「功能 → 代码位置」索引 |
-| 改开关/阈值/频控 | 第 5 节「配置键」——注意 **运行态 config 在 `interests/`，不在仓库** |
+| 改开关/阈值/频控 | 第 5 节「配置键」——注意 **运行态 config 在 `state/`，不在仓库** |
 | 找运行时产生的文件 | 第 6 节「状态文件」 |
 | 找 B站接口调用点 | 第 7 节「外部 API」 |
 | 改代码前先看规矩 | 第 9 节「约定与坑」 |
@@ -55,15 +55,16 @@ graph TD
 
 ## 2. 模块地图
 
-`scripts/` 下（行数为 2026-10-27 快照）：
+`scripts/` 下（行数为 2026-11-13 快照）：
 
 | 文件 | 行数 | 职责 | 关键符号（起始行） |
 |---|---|---|---|
 | `radar.py` | 18 | CLI 薄壳：`sys.path` + `from bili_radar.cli import main` | — |
 | `frames.py` | 17 | 抽帧薄壳 → `bili_radar.media.frames.main` | — |
-| `bili_qr_login.py` | 115 | 扫码登录自救（**唯一用 requests+qrcode 的脚本**，非标准库） | `S` session、`QR_PATH`、主流程脚本体 |
-| `apply-cron.py` | 82 | 切 cron 调度模式（all / valley） | `EXPR`、`find_job()`、`main()` |
-| `bili_radar/core.py` | 60 | 基建，零依赖 | `UA:14` `API:16` `die:19` `cookie_path:24` `state_dir:29` `load_cookie:42` `read_config:52` `clean:60` |
+| `init.py` | 114 | 初始化 state/：建 out/frames、拷模板、写默认 config.json（写操作全关）、打印 cookie 路径 | `DEFAULT_CONFIG:27` `_copy_template:67` `main:79` |
+| `bili_qr_login.py` | 180 | 扫码登录自救（纯标准库 urllib；`qrcode` 仅出图用，可选依赖） | `http_json:47` `follow:53` `cookies_dict:64` `main:68` `write_cookie:152` |
+| `schedule.py` | 119 | 打印调度的 rrule + prompt（all / valley）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:38` `HOURS:39` `next_start:49` `build_rrule:59` `prompt_text:67` `save_state:74` `main:92` |
+| `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
 | `bili_radar/gates.py` | 144 | 写闸 | `note_failure:15` `write_log:33` `_write_cooldown:46` `_write_gate:73` `_write_fail:95` `_record_write:123` `mention_log:128` `_ago_h:141` |
 | `bili_radar/cli.py` | 153 | argparse 路由 + re-export | `main:40`（各 `add_parser` 见 3 节） |
@@ -105,7 +106,7 @@ graph TD
 | `dm`（读私信） | 129 | `cmd_dm` | `notify.py:73` |
 | `notify`（@我/回复我） | 136 | `cmd_notify` | `notify.py:135` |
 
-独立入口（非 radar.py）：`python3 scripts/frames.py --bv ...` → `media/frames.py:main`。
+独立入口（非 radar.py）：`python scripts/frames.py --bv ...` → `media/frames.py:main`。
 
 ---
 
@@ -138,14 +139,14 @@ graph TD
 | **活跃度判读（活跃/沉默/故障）** | `feedback.py` | `cmd_engagement:65` |
 | **抽帧九宫格 / 硬字幕长图** | `media/frames.py` | `pick_points:203` `build_grid:216` `main:259` |
 | **稀疏下载**（moov 解析、GOP 区间、零填充） | `media/mp4_sparse.py` | `_SparsePlan:78` `sparse_plan:145` `build_sparse:184` |
-| **cron 模式切换（all/valley）** | `apply-cron.py` | `EXPR` `find_job()` |
+| **调度模式（all/valley）** | `schedule.py` | `build_rrule()` `save_state()` |
 | **cookie 失效自救（扫码）** | `bili_qr_login.py` | 脚本体（`QR_PATH` 输出二维码 → 轮询 → 跟随 crossDomain → 覆写 cookie） |
 
 ---
 
 ## 5. 配置键 → 读取点 → 作用
 
-⚠️ **运行态 config 在 `state_dir()/config.json`**（= `~/.openclaw/workspace/interests/config.json`），
+⚠️ **运行态 config 在 `state_dir()/config.json`**（= `state/config.json`），
 仓库里的 `templates/config.json` 只是模板；`.gitignore` 已忽略 `config.json`。改完**立即生效**（无缓存）。
 
 | 配置段 | 键 | 读取点 | 作用 |
@@ -158,13 +159,13 @@ graph TD
 | `write.<kind>` | `enabled` `per_hour` `per_day` `forbid` `allow_mid` `same_video_once` | `gates.py:79`；`comment.py:257-268`；`dynamic.py:27`；`notify.py:82` | 写操作闸（kind = `comment`/`dynamic`/`message`） |
 | `write` | `cooldown_sec` | `comment.py:98` `:268`、`draft.py:164`、`dynamic.py:41`、`notify.py:51` | 写冷却秒数（默认 120） |
 | `budget` | `max_subtitles_per_round` `max_push_per_round` `min_total_score` | **代码不读** | 只在 SKILL/charter 层由模型遵守（2026-10-27 已放开为 0=不限） |
-| `schedule` | `mode` `cron` | 由 `apply-cron.py` 写 | 记录，供报告引用 |
+| `schedule` | `mode` `rrule` | 由 `schedule.py` 写 | 记录，供报告引用；DSH 用 `schedule_create` 建任务 |
 
 ---
 
-## 6. 状态文件（运行时，`state_dir()` = `~/.openclaw/workspace/interests/`）
+## 6. 状态文件（运行时，`state_dir()` = `state/`）
 
-`state_dir()` 靠**向上找 `skills/interest-radar` 目录标记**定位（`core.py:29`），可用环境变量 `INTERESTS_DIR` 覆盖。
+`state_dir()` 默认 `<仓库根>/state`（`core.py:36` 的 `REPO_ROOT` = `parents[2]`），可用 `INTERESTS_DIR` 覆盖；**不再向上找 `skills/` 标记**。
 
 | 文件 | 写者 | 作用 |
 |---|---|---|
@@ -185,8 +186,8 @@ graph TD
 | `frames/frames_<BV>.png` `+.json` | `media/frames.main` | 抽帧产物 |
 
 仓库外：
-- cookie：`~/.openclaw/secrets/bilibili-cookies.txt`（路径可由 `BILI_COOKIE_FILE` 覆盖，`core.py:24`）
-- 二维码：`workspace/tmp/bili-qr-login-<ts>.png`（`bili_qr_login.py`）
+- cookie：`<工作区>/config/bilibili_cookies.txt`（路径可由 `BILI_COOKIE_FILE` 覆盖，`core.py:24`）
+- 二维码：`state/tmp/qr-<ts>.png`（`bili_qr_login.py`）
 
 ---
 
@@ -215,13 +216,13 @@ graph TD
 零第三方依赖，纯 `unittest` + mock，**不碰真实账号/网络/凭据**：
 
 ```bash
-cd <skill>/scripts && python3 -m unittest discover tests -v
+cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
 | 文件 | 覆盖 | 用例 |
 |---|---|---|
 | `test_backoff.py` | 退避/熔断 | `test_retry_sleep_exponential` `..._cap_60` `test_fuse_dies_after_3` `test_note_ok_resets_streak` `test_fuse_not_triggered_below_3` `test_get_business_code_no_retry` |
-| `test_core.py` | `state_dir` 路径（包化后不能算成 `skills/interests`） | `test_default_points_to_workspace_interests` `test_env_override` |
+| `test_core.py` | `state_dir` / `cookie_path` 路径口径 | `TestStateDir` `TestCookiePath` `TestWorkspaceRoot` |
 | `test_dm.py` | dm 水位（自己消息不推水位） | `TestDmWatermark` 下 5 例 |
 | `test_draft.py` | 草稿状态机 | 入稿校验 / 同人 30 天 / 水军昵称拒 / 24h 过期 / 审批 / 失败计数 |
 | `test_engagement.py` | 活跃度三分支 + 窗口 | 5 例 |
@@ -236,15 +237,15 @@ cd <skill>/scripts && python3 -m unittest discover tests -v
 
 1. **零 `__init__.py`**：`bili_radar/` 是隐式命名空间包，**目录即领域**。新功能往对应域模块加，**禁止再长大文件**。
 2. **域模块互不 import**（只依赖 `core`/`client`/`gates`）。唯一例外 `draft → comment.post_reply`。
-3. **外部调用只走 CLI**：`python3 scripts/radar.py <cmd>`，**不要直接 `import bili_radar.*`** 当库用。
+3. **外部调用只走 CLI**：`python scripts/radar.py <cmd>`，**不要直接 `import bili_radar.*`** 当库用。
 4. **写操作默认干跑**：所有写命令（reply/comment/dynamic/msg/draft approve）**默认 dry-run**，真发要 `--yes`；干跑不触发写冷却。
 5. **闸写在代码里，不靠提示词**：新增写能力必须过 `_write_gate` + 敏感词 fail-closed + 频控 + `--yes`。
 6. **删动态不冷却**（`_write_gate(..., rate=False)`，纠错优先）。
 7. **字幕必须 wbi 签名**（`player/wbi/v2`）：旧接口 `x/player/v2` 会返回**别的视频的字幕**（2026-10-15 事故）。`cmd_sub` 另有语速合理性校验兜底。
 8. **`media/frames.py` 自带一份请求/wbi 代码**（`http_get_json`/`wbi_keys`/`wbi_sign`），**不从 `client.py` 走** —— 因为抽帧是独立入口。改请求层退避时**两处都要看**。
 9. **抽帧在线拉流会崩**：沙箱 ffmpeg 拉 CDN 流段错误 → 自动降级**稀疏下载**（`mp4_sparse`），非 faststart 才回退整片下载。这是 `frames.py:314`（`sparse_plan`）→ `:318`（回退 `download_video`）的分支逻辑。
-10. **`bili_qr_login.py` 是异类**：用 `requests` + `qrcode`（非纯标准库），是 cookie 失效时的免手动导出兜底。
-11. **`state_dir()` 定位法**：向上找 `skills/interest-radar` 标记目录，别依赖 `parents[N]` 层级深度（包化后已踩过一次坑）。
+10. **`bili_qr_login.py` 不再用 requests**：全 urllib；`qrcode` 只在出图时 import（缺包 → 打印 `QR_URL` + `MISSING_DEP`，exit 4），是 cookie 失效时的免手动导出兜底。
+11. **`state_dir()` 定位法**：`$INTERESTS_DIR` 或 `<仓库根>/state`，**别向上找标记目录**（OpenClaw 那套已废弃：包化后踩过一次坑）。
 12. **判重/权重/阈值是算术（脚本做），打分是判断（模型做）** —— 别把判断塞进脚本。
 13. 改完代码**顺手更新本文件行号**；提交带版本号（仓库有 bump 规矩的话）。
 
@@ -255,7 +256,7 @@ cd <skill>/scripts && python3 -m unittest discover tests -v
 | 任务 | 步骤 |
 |---|---|
 | **加一个子命令** | ① 对应域模块写 `cmd_xxx(a)` ② `cli.py:main()` 里 `add_parser` + `set_defaults(fn=cmd_xxx)` ③ 若是一类新写操作 → 走 `_write_gate` ④ 补测试 ⑤ 更新本文件 §3/§4 |
-| **调频控** | 改 `interests/config.json` 对应段（`mention` / `write.<kind>` / `draft`），或 `radar.py rate --per-hour N`（仅 mention）；不用改代码、不用重启 |
+| **调频控** | 改 `state/config.json` 对应段（`mention` / `write.<kind>` / `draft`），或 `radar.py rate --per-hour N`（仅 mention）；不用改代码、不用重启 |
 | **加一个写操作类型** | 在 `config.json.write` 增 `<kind>` 段 + 代码里 `_write_gate("<kind>")` + `_write_fail(d,"<kind>")` |
 | **改请求退避策略** | `client.py:_retry_sleep` / `_note_fail` / `get`；**同步检查 `media/frames.py:http_get_json`** |
 | **改抽帧排版** | `media/frames.py:build_grid` `pick_points` |

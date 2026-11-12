@@ -3,8 +3,8 @@
 > 参照 SurfCore-Life COVERAGE/PARAMETER-AUDIT 的治理思路整理（2026-11-02）。
 > 目的：把雷达所有「可调的行为杠杆」列清楚——**归谁管、怎么生效、代码里到底有没有接线**。
 > 权威口径：`charter.md` 为准；本文件是「参数地图」，两个运行时文件是唯一真值：
-> - 运行配置：`~/.openclaw/workspace/interests/config.json`（本文件不复制运行值，敏感项见该文件）
-> - 规则口径：`~/.openclaw/workspace/interests/charter.md` + 本仓库 `SKILL.md`
+> - 运行配置：`state/config.json`（本文件不复制运行值，敏感项见该文件）
+> - 规则口径：`state/charter.md` + 本仓库 `SKILL.md`
 
 ## 状态徽标
 
@@ -89,12 +89,12 @@
 
 `num`(10) / `warn_ratio`(0.3) / `name_keywords` / `ai_patterns` —— 读取点 comment.py:191-195、draft.py:66。只提示不拦截。
 
-## F 组 · 调度与触发 — config `schedule` + cron
+## F 组 · 调度与触发 — config `schedule` + DSH 定时任务
 
 | 参数 | 运行值 | 生效方式 | 状态 |
 |---|---|---|---|
-| `schedule.mode` / `cron` | all / `0 * * * *` | 平台 cron（openclaw cron + apply-cron.py），**radar 代码不读** | ✅ 接线（外部） |
-| 触发随机化 staggerMs | 120000 | cron 配置侧 | ✅ 接线（外部） |
+| `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0..23;BYMINUTE=17` | 外部定时（DSH `schedule_create`，rrule 由 `schedule.py` 生成），**radar 代码不读** | ✅ 接线（外部） |
+| 触发不落整点 | `BYMINUTE=17` | `schedule.py --minute`（DSH rrule 无 stagger，用分钟偏移等效） | ✅ 接线（外部） |
 | 谷时口径（valley） | 工作日 9-12/14-18 高峰 | 📐 注释口径 | 📐 |
 
 ## G 组 · 请求层（代码常量，🔒 不可配）
@@ -106,14 +106,14 @@
 ## 🚨 本次审计发现的问题清单（2026-11-02）
 
 > **状态更新（同日 B 组落地后）**：（1）`radar.py verify-params` 参数采用对账已上线——
-> 下表问题 1/2（drift）和 3/4/5/6（not-consumed）每次运行动态自检，conflict 才让退出码非零（cron 可挂告警）。
+> 下表问题 1/2（drift）和 3/4/5/6（not-consumed）每次运行动态自检，conflict 才让退出码非零（可挂到定时任务做告警位）。
 > （2）**B1/B2（2026-11-02）已处置 #3 与 #4 中的 `min_total_score`**：敏感参数加审批闸（`config propose/approve`）、
 > `min_total_score` 接线为 `comment --score` 硬闸、`max_subtitles_per_round` 死键已删。
 > （3）**口径裁决（11-02 老板拍板 AA）**：#1 统一「每轮 @ ≤1」（10-27）；#2 语义分层（@ ≤1 / 汇报候选 0-3）并加注；
 > 模板 `max_push_per_round` 3→1 对齐；**cron 每时轮 prompt 的「每轮最多 3 条字幕」已修**（#7：10-27 的「字幕不限」此前 6 天从未生效，现已改「每轮不限（10-27 拍板）」）。
 > 剩余处置（min_score=17 幽灵值是否下放硬闸）仍待老板拍板。
 >
-> （4）**11-07 老板拍板（治超时）**：单轮字幕上限从「不限」改回「每轮 ≤5 条」（+ 抽帧 ≤2、整轮 12 分钟内收尾）；cron `60d88f54` 超时 900s→1800s（单轮常跑到 14 分钟贴 900s 顶，11-07 连续 3 轮超时）。四处同步：charter.md / SKILL.md / interests/config.json `_subtitle_note` / cron prompt；`budget.max_subtitles_per_round` 仍为已删死键（不恢复），上限只在文档/prompt 层约束模型。
+> （4）**11-07 老板拍板（治超时）**：单轮字幕上限从「不限」改回「每轮 ≤5 条」（+ 抽帧 ≤2、整轮 12 分钟内收尾）；cron `60d88f54` 超时 900s→1800s（单轮常跑到 14 分钟贴 900s 顶，11-07 连续 3 轮超时）。四处同步：charter.md / SKILL.md / state/config.json `_subtitle_note` / cron prompt；`budget.max_subtitles_per_round` 仍为已删死键（不恢复），上限只在文档/prompt 层约束模型。
 
 按影响排序，**前两条是真实行为级问题，其余是卫生问题**：
 
@@ -136,14 +136,14 @@
 
 ## 操作手册（怎么改、怎么验）
 
-1. **改 config 参数** → 一律走 `radar.py config set <段.键> <值> [--yes]`（A3，2026-11-02）：**默认干跑**（打印 before→after，不写）；`--yes` 才写，**写前自动备份**（`config.json.bak-<ts>-<rand>`，保留最近 10 份）、写后重读校验；改错了 `config restore --list` 找备份 → `config restore <备份名> --yes` 一键还原（还原前会把当前值再备份一份，反悔可回）。敏感项（开关/白名单/频控）与死配置/漂移会显式提醒。`rate` 改 @ 频控同样自动备份。**每次变更自动写入参数变更账本**（A4，`interests/param-history.jsonl`：谁/何时/为何改、前后值；restore 记回滚行与实际变动的参数）；顺手 `--reason "为什么改"`，事后 `config log` 看时间线、`config observe <变更id> --note "效果如何"` 补观察——**reason/观察只记人明说的，不编造**。热加载，下一轮立即生效。敏感项（频控/开关/白名单）改完**必须告诉我**，涉及账号安全的改动最好等我确认。
+1. **改 config 参数** → 一律走 `radar.py config set <段.键> <值> [--yes]`（A3，2026-11-02）：**默认干跑**（打印 before→after，不写）；`--yes` 才写，**写前自动备份**（`config.json.bak-<ts>-<rand>`，保留最近 10 份）、写后重读校验；改错了 `config restore --list` 找备份 → `config restore <备份名> --yes` 一键还原（还原前会把当前值再备份一份，反悔可回）。敏感项（开关/白名单/频控）与死配置/漂移会显式提醒。`rate` 改 @ 频控同样自动备份。**每次变更自动写入参数变更账本**（A4，`state/param-history.jsonl`：谁/何时/为何改、前后值；restore 记回滚行与实际变动的参数）；顺手 `--reason "为什么改"`，事后 `config log` 看时间线、`config observe <变更id> --note "效果如何"` 补观察——**reason/观察只记人明说的，不编造**。热加载，下一轮立即生效。敏感项（频控/开关/白名单）改完**必须告诉我**，涉及账号安全的改动最好等我确认。
 2. **改模型规则**（阈值/条数/流程）→ 改 `SKILL.md` + `charter.md` **两处一起**（本文件揭示：单改一处必漂移）。charter 是最终口径。
-3. **改 cron/schedule** → 走 `scripts/apply-cron.py`（all/valley），不是 config.json 说了算。
+3. **改调度** → `scripts/schedule.py`（all/valley）打印 rrule + prompt，再用 DSH 的 `schedule_create` 建/改任务；`config.json` 的 `schedule` 段只是记录，不是权威。
 4. **验证**：
-   - `python3 scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂 cron 做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
-   - `python3 scripts/radar.py rate` — 看 @ 频控用量与参数
+   - `python scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂到定时任务做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
+   - `python scripts/radar.py rate` — 看 @ 频控用量与参数
    - `radar.py mention --bv <BV> --dry-run`（默认干跑）— 验闸与文案
-   - `cd scripts && python3 -m unittest discover tests -v` — 52 用例回归（零网络）
+   - `cd scripts && python -m unittest discover tests -v` — 114 用例回归（零网络）
 5. **审计口径**：本文件每次改参数后顺手核一遍「接线/漂移」列，保持地图与代码同步。
 
 ---

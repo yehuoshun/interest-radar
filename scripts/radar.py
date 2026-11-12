@@ -5,7 +5,7 @@
 实现全在 bili_radar/ 包里（零 __init__.py，隐式命名空间包）：
   core / client / gates / browse / comment / draft / notify / dynamic / feedback / cli / media/
 
-用法不变：python3 scripts/radar.py <子命令> ...
+用法不变：python scripts/radar.py <子命令> ...
 """
 import sys
 from pathlib import Path

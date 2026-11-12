@@ -8,7 +8,7 @@ drafts / 当日日报）逐项对账，输出判定。对齐 SurfCore-Life 的�
 
 判定五档：
   ✅ adopted       实际证据与保存值一致（闸强制执行 / 模型按规则执行）
-  ⏳ pending       暂无证据（不常触发 / 证据在微信侧等外部）
+  ⏳ pending       暂无证据（不常触发 / 证据在对话/外部渠道侧）
   ❌ conflict      实际 ≠ 保存值（模型没按 config 走 —— cron 告警位）
   ⚠️ drift         文档口径互斥（charter vs SKILL.md / config 与文本不等价）
   💤 not-consumed  代码零引用（死配置，改了不生效）

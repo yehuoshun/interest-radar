@@ -1,11 +1,14 @@
 # 运行数据 / 私人档案 —— 一律不进仓库
+state/
+tmp/
+config/
+bili_credential.json
+*.log
+*.bak-qr
 weights.json
 evidence.jsonl
 seen.md
 out/
-config.json
-bili_credential.json
-*.log
 
 # Python
 __pycache__/
@@ -16,4 +19,6 @@ __pycache__/
 
 # 抽帧产物（运行时生成，不进仓库）
 frames/
+
+# 旧 OpenClaw 布局的状态目录（只做忽略兼容）
 interests/

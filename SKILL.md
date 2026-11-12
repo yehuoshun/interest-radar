@@ -1,11 +1,11 @@
 ---
 name: interest-radar
-description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真正值得占用你一次注意力的东西，写成日报并推送到微信。当用户要求「跑一轮兴趣雷达 / 今天的雷达 / 每天帮我筛 B站 / 给我推值得看的东西 / 更新兴趣档案 / 记录反馈」时使用。判断口径与红线见 interests/charter.md。
+description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真正值得占用你一次注意力的东西，写成日报，并把够格的 0-3 条在对话里回报。当用户要求「跑一轮兴趣雷达 / 今天的雷达 / 每天帮我筛 B站 / 给我推值得看的东西 / 更新兴趣档案 / 记录反馈」时使用。判断口径与红线见 state/charter.md。
 ---
 
 # 兴趣雷达（interest-radar）
 
-每天一轮：**读兴趣档案 → 搜 → 读字幕原文 → 四维打分 → 判重 → 写日报 → 推微信**。
+每天一轮：**读兴趣档案 → 搜 → 读字幕原文 → 四维打分 → 判重 → 写日报 → 对话里回报 0-3 条**。
 不是搜索机器人：**"值不值得占用他一次注意力"是唯一的判据**，宁缺勿滥，**一天 0 条是合法输出**。
 
 ## 硬规则
@@ -13,12 +13,12 @@ description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真�
 - **写操作分档管**（2026-10-19 老板放开「发动态/私信」）：每档都有代码闸（开关 + `--yes` + 敏感词 + 频控 + 白名单 + 失败自动关）。口径不变：**只 @ 主号、只私信白名单、不发档案内容**。见「发动态 / 私信」节。
 - **只 @ 主号，永远不理别人**（不回复、不引用、不 @ 第三人、不吵架）—— 目的就一个：**防账号被爆**。
   - ✅ **例外（2026-10-17 老板拍板）：主号（夜灬瞬）@ 我 = 指令，必须回一条**——**用楼中楼回**：`radar.py reply --bv <视频> --reply-to <at[].rpid> --text "@夜灬瞬 …"`（不占「同一视频一条」名额；楼中楼可见性查不准 → 记「未验证」）。**别人 @ 我 → 不理、不回**。
-- **兴趣档案不出本机**：`interests/` 里的任何内容不进公开平台、不进外部日志。
-- **不读 OpenClaw 的 memory 全文**（噪音源）。需要候选池时只看你自己的项目清单（别拿助手的长期记忆当兴趣源，那是噪音）。
+- **兴趣档案不出本机**：`state/` 里的任何内容不进公开平台、不进外部日志。
+- **不读助手的长期记忆全文**（噪音源）。需要候选池时只看你自己的项目清单（别拿助手的长期记忆当兴趣源，那是噪音）。
 - **不给档案灌历史数据**：档案只由本人明写 + 👍/👎 反馈生长，别自作聪明导入 star/收藏。
 - 不确定的事**不编**，宁可写「没查到」。
 
-## 状态目录（`~/.openclaw/workspace/interests/`）
+## 状态目录（`state/`）
 
 | 文件 | 作用 |
 |---|---|
@@ -29,36 +29,51 @@ description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真�
 | `seen.md` | 判重表（脚本写） |
 | `out/<日期>.md` | 每日报告 |
 
+## 开跑前（本机一次性）
+
+```bash
+cd code/interest-radar
+python scripts/init.py            # 建 state/（拷模板 + 写默认 config.json），并打印 cookie 路径
+python scripts/radar.py check     # 打印昵称 = cookie 有效
+```
+
+- 状态目录 `state/`（`INTERESTS_DIR` 可覆盖）：报告 `state/out/`、抽帧 `state/frames/`
+- cookie：`<工作区>/config/bilibili_cookies.txt`（本机 = `E:\DevSoftWare\DeepSeekWorkSpace\config\bilibili_cookies.txt`）。
+  没有就取小号 cookie 存成一行 `SESSDATA=…; bili_jct=…; DedeUserID=…`；或 `python scripts/bili_qr_login.py` 扫码换新
+  （二维码出图需 `python -m pip install "qrcode[pil]"`；没装该包会打印登录 URL 并 exit 4）
+- 本机 Windows + PowerShell：命令是 **`python`，不是 `python3`**；`ffmpeg` 不在 PATH ⇒ `scripts/frames.py` 抽帧用不了（其余功能不受影响）
+- 默认 `config.json` 里**所有写操作开关都是关的**：先跑只读流程，要发东西再 `radar.py config set write.comment.enabled true --yes`
+
 ## 命令速查
 
 ```bash
-R=~/.openclaw/workspace/skills/interest-radar/scripts/radar.py
-python3 $R check                                    # 校验 cookie（读字幕必须登录）
-python3 $R search --kw "关键词" --num 20 --days 7   # 搜（order: pubdate|click|totalrank）
-python3 $R comment-check --bv BV1xxx          # 评论区快筛（@ 分享前跑：疑似 AI 水军提示，不拦截）
-python3 $R sub BV1xxxxxxxxx                         # 字幕全文；无字幕打印 NO_SUBTITLE
-python3 scripts/frames.py --bv BV1xxx [--strip]      # 抽帧看画面：默认 3x3 九宫格；--strip 硬字幕长图（需字幕轨）
-python3 $R seen check BV1xxx                        # SEEN / NEW
-python3 $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
-python3 $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
-python3 $R stats                                    # 权重 + 已看条数（给"每周提议"用）
-python3 $R config set <段.键> <值> [--yes] [--reason "…"]  # 改配置：默认干跑+自动备份 → config restore 可回滚；变更入账本
-python3 $R config restore [--list] [<备份名> --yes]   # 配置备份列表/还原（保留最近 10 份）
-python3 $R config log [--param 段.键] [--json]        # 参数变更账本（谁/何时/为何改，回滚与观察）
-python3 $R config observe <变更id> --note "…"         # 给某次变更补事后观察
-python3 $R verify-params [--json]                    # 参数采用对账：config 保存值 vs 运行证据（只读；conflict>0 → exit 3）
-python3 $R engagement [--days N]                    # 活跃度评估：老板反馈/主动@/批准草稿/报告数 → 判读是否降频
-python3 $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
-python3 $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
-python3 $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
-python3 $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
-python3 $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸；--score 低于 budget.min_total_score 会被拒，exit 14）
-python3 $R dynamic-del --dyn-id 1260… --yes          # 删掉发错的动态
-python3 $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_mid 白名单）
-python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
+R=scripts/radar.py
+python $R check                                    # 校验 cookie（读字幕必须登录）
+python $R search --kw "关键词" --num 20 --days 7   # 搜（order: pubdate|click|totalrank）
+python $R comment-check --bv BV1xxx          # 评论区快筛（@ 分享前跑：疑似 AI 水军提示，不拦截）
+python $R sub BV1xxxxxxxxx                         # 字幕全文；无字幕打印 NO_SUBTITLE
+python scripts/frames.py --bv BV1xxx [--strip]      # 抽帧看画面：默认 3x3 九宫格；--strip 硬字幕长图（需字幕轨）
+python $R seen check BV1xxx                        # SEEN / NEW
+python $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
+python $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
+python $R stats                                    # 权重 + 已看条数（给"每周提议"用）
+python $R config set <段.键> <值> [--yes] [--reason "…"]  # 改配置：默认干跑+自动备份 → config restore 可回滚；变更入账本
+python $R config restore [--list] [<备份名> --yes]   # 配置备份列表/还原（保留最近 10 份）
+python $R config log [--param 段.键] [--json]        # 参数变更账本（谁/何时/为何改，回滚与观察）
+python $R config observe <变更id> --note "…"         # 给某次变更补事后观察
+python $R verify-params [--json]                    # 参数采用对账：config 保存值 vs 运行证据（只读；conflict>0 → exit 3）
+python $R engagement [--days N]                    # 活跃度评估：老板反馈/主动@/批准草稿/报告数 → 判读是否降频
+python $R reply --bv BV1xxx                        # 评论 @ 某人（默认干跑，只打印将要发什么）
+python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
+python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
+python $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
+python $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸；--score 低于 budget.min_total_score 会被拒，exit 14）
+python $R dynamic-del --dyn-id 1260… --yes          # 删掉发错的动态
+python $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_mid 白名单）
+python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
 ```
 
-- cookie 文件：`~/.openclaw/secrets/bilibili-cookies.txt`（小号；**失效先跑 `scripts/bili_qr_login.py` 扫码自救**，见下节，不用手动导出）
+- cookie 文件：`<工作区>/config/bilibili_cookies.txt`（小号；**失效先跑 `scripts/bili_qr_login.py` 扫码自救**，见下节，不用手动导出）
 - 脚本只做确定性的事；**判断一律由模型做**
 
 ## 一轮流程（严格按序）
@@ -70,13 +85,13 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 3. **广撒网**：每条兴趣线搜 1-2 轮（主题 + 邻域各一次），`--days 7 --order pubdate`。
 4. **粗筛（先省 token）**：按标题/简介/时长/播放量砍掉明显不值的（入门教程、标题党、吵架场）→ **剩 ≤ 8 条候选**。
    ⚠️ **字幕预算：每轮 ≤ 5 条**（2026-11-07 老板拍板加回上限，治单轮超时；此前 10-27 曾放开为不限）。粗筛后按分数从高到低读，**读满 5 条即停**；剩下的写进报告「待读队列」，下一轮优先。
-   ⏱ **单轮时间预算：12 分钟**（2026-11-07 新增）。抽帧 ≤ 2 条；整轮跑到 12 分钟就停手，**先写报告再收尾总结**。cron 超时已从 900s 上调到 1800s，但那只当兜底——目标是 12 分钟内收尾（此前单轮常跑到 14 分钟贴 900s 顶，11-07 连续 3 轮超时）。
+   ⏱ **单轮时间预算：12 分钟**（2026-11-07 新增）。抽帧 ≤ 2 条；整轮跑到 12 分钟就停手，**先写报告再收尾总结**。调度侧超时只当兜底——目标是 12 分钟内收尾（此前单轮常跑到 14 分钟贴 900s 顶，11-07 连续 3 轮超时）。
 5. **逐条 `sub` 读原文**（不看摘要下判断）。`NO_SUBTITLE` → 跳过（除非本人开了转写，那就另说）。
    **深读抽帧（2026-10-27 新增）**：对读字幕后仍难判断、或无字幕但值得赌一眼的候选，跑
-   `python3 scripts/frames.py --bv BV1xxx`（默认 3x3 九宫格，每格 720px 带时间戳），
+   `python scripts/frames.py --bv BV1xxx`（默认 3x3 九宫格，每格 720px 带时间戳），
    然后用 image 工具读九宫格补判断（画面本身就是一路证据：有没有干货、是不是标题党、制作质量）。
    - **画面路是补充不是替代**：字幕能判断的就别抽帧（抽帧要下载，贵）；**每轮抽帧 ≤ 2 条**；没字幕轨但有硬字幕的用 `--strip`（按字幕时刻采样拼长图，默认 480p/24 帧）
-   - 输出在 `interests/frames/frames_<BV>.png` + `.json`（每格时间点）
+   - 输出在 `state/frames/frames_<BV>.png` + `.json`（每格时间点）
    - ⚠️ 沙箱 ffmpeg 在线拉 CDN 流会段错误 → 脚本自动降级为**稀疏下载**：只拉 moov + 每个采样点的 GOP 段（Python Range 并发 + mp4 box 解析），实测 9 帧下载 ~6MB（全片 26MB）、44 分钟长视频 strip 下载 7.1MB（全片 55MB），抽帧结果与全片逐字节一致；稀疏方案不可用（非 faststart）才回退整片下载
 6. **四维打分**（各 0-5，写在报告里）：**相关性 / 新奇度 / 实操价值 / 新鲜度**
    - 总分 ≥ 阈值（默认 **≥ 14/20**）才留；**新奇度 ≤ 1 的直接砍**（只是重复他已知道的）。
@@ -102,20 +117,20 @@ python3 $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 触发时刻随机化（2026-10-27）
 
-雷达 cron 加 `staggerMs=120000`（0-2 分钟随机抖动）：每小时仍跑，但触发时刻不可预测（间隔 58-62 分钟）——破除「整点请求」的机器规律。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
+雷达**不跑整点**：`scripts/schedule.py` 的 `--minute` 默认 17（`BYMINUTE=17`），触发时刻不落在整点，等效原来 `staggerMs` 想做的事——破除「整点请求」的机器规律。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
 
 ## cookie 失效自救（扫码登录，2026-10-27 起）
 
 `check` 报 `-101 账号未登录`（服务端判定登录态失效；文件在 ≠ 登录在）时：
 
 ```bash
-python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 crossDomain 拿 Set-Cookie → 覆写 cookie 文件（自动备份 .bak-qr）
+python scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 crossDomain 拿 Set-Cookie → 覆写 cookie 文件（自动备份 .bak-qr）
 ```
 
 - 二维码 PNG 输出到 `tmp/bili-qr-login-<ts>.png`（**文件名带时间戳**，防浏览器缓存旧图），发给本人用**小号 B站 App** 扫码并点确认
 - 新版 poll 成功后返回的是 **crossDomain 跳转 URL**（`passport.biligame.com/.../crossDomain?ticket=...`），不是直接 SESSDATA —— 脚本必须**跟随跳转**从 Set-Cookie 提取登录态（第一次踩坑：只解析 query 拿不到）
 - 状态码：`86101` = 等待扫码（正常）、`86090` = 已扫待确认、`CONFIRMED` 后 `LOGIN_OK` = 成功；二维码 3 分钟有效，超时重跑
-- 成功后 `radar.py check` 验证；`~/.openclaw/secrets/` 里没有其它 B站凭据可自愈，扫码是唯一免手动导出的路径
+- 成功后 `radar.py check` 验证；`<工作区>/config/` 里没有其它 B站凭据可自愈，扫码是唯一免手动导出的路径
 - 历史：10-23 01:00 ~ 10-27 14:00 连续 **110 轮停摆**后靠此法恢复（2026-10-27）
 
 ## 评论与 @（**默认关**）
@@ -138,7 +153,7 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 正文默认用 `config.json` 里的 `template`；**模板里不许出现档案、项目名、私人信息**。
 撤除：`/x/v2/reply/del`（带 `csrf`）可删，实测 code=0。
 
-- ⚠️ 发评论失败（`-107 账号未转正` / 风控 / -412）→ **不重试、不刷屏**：这一轮就只推微信，报告里记一行原因。
+- ⚠️ 发评论失败（`-107 账号未转正` / 风控 / -412）→ **不重试、不刷屏**：这一轮就只在对话里报一句，报告里记一行原因。
 > 风险自担：评论是**公开**的；小号 @ 主号等于把两个号公开关联；新号发言有风控概率。
 > 防爆措施：只 @ 主号 / **同一视频只发一条** / 频控三参数（当前 0/0/0 = 全不限，可配）/ **连续 3 次发失败自动关掉 mention.enabled** 并喊人。
 
@@ -155,7 +170,7 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 7. 连续 3 次失败 → **自动关掉该 kind 的开关**并喊人
 
 - 实测接口（2026-10-19）：动态 `POST /x/dynamic/feed/create/dyn`，**只吃 JSON body** `{"dyn_req":{...}}`（form 编码会 -400）；删动态走 `dynamic_svr/rm_dynamic`；私信走 `web_im/send_msg`（form + csrf）
-- 日志：所有写入落 `interests/write-log.jsonl`；失败计数 `interests/write-fails-<kind>.json`
+- 日志：所有写入落 `state/write-log.jsonl`；失败计数 `state/write-fails-<kind>.json`
 - **动态不发档案**：只发「今天读到/干了什么」这种本体视角的话。**私信不群发、不催回复**
 - 📌 **身份已公开关联**（2026-10-19）：小号签名写着「夜灬瞬 的 AI 助手」——两号关联是本人主动公开的；**档案/私人偏好/主号私信内容依旧一条不许上公开面**（限制更严，因为已经实名挂上去了）
 
@@ -176,17 +191,17 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 流程（雷达每轮 `notify --new-only` 后）：
 
 1. 读通知，**只有提问类**（问视频内容 / 问雷达身份 / 明确找小号说话）才考虑；夸夸、无意义、引战、催更一律不理不记
-2. 写草稿：`python3 $R draft new --bv <视频> --rpid <那条评论rpid> --from "对方昵称" --text "<正文≤150字>"`
+2. 写草稿：`python $R draft new --bv <视频> --rpid <那条评论rpid> --from "对方昵称" --text "<正文≤150字>"`
    —— 只讲该视频本身，不带档案/项目/路径；敏感词命中直接拒入稿
-3. **草稿推送给本人审批，双通道**（2026-10-27 老板拍板：微信和 B站私信都行）：
-   - **微信**：单独推一条（不等日报），附审批命令
+3. **草稿推送给本人审批，双通道**（2026-10-27 拍板：对话和 B站私信都行）：
+   - **对话**：扫到可疑草稿就在本轮答复里单独提一条（不等日报），附审批命令
    - **B站私信**：`radar.py msg --mid 239028467 --text "<草稿id> <摘要前80字> <视频链接> 批准：draft approve <id> --yes / 否决：discard <id>"`（≤200 字，正文精简）
-   - **审批接收**：老板微信回复 → agent 直接执行；老板 B站私信回复 → 下一轮 `dm --new-only` 读正文识别指令后执行
+   - **审批接收**：本人在对话里回复 → agent 直接执行；老板 B站私信回复 → 下一轮 `dm --new-only` 读正文识别指令后执行
 4. 本人批准后才真发（楼中楼回原评论）；**24h 未审批自动作废**
 
 闸（全在代码里，`config.json` → `draft`）：`enabled`（试点默认开）· 正文 ≤150 + 敏感词 fail-closed · **12h ≤1 / 24h ≤2 频控**（可调）· 必须 `--yes` · 连续失败 3 次标 failed
 
-- 账本：`interests/drafts.jsonl`；状态：pending → approved(sent) / discarded / expired / failed
+- 账本：`state/drafts.jsonl`；状态：pending → approved(sent) / discarded / expired / failed
 - ⚠️ 这条试点就是「陌生人互动」的全部：不回私信陌生人、不主动评论陌生人、不 @ 第三人
 
 ## 代码结构（2026-10-27 包化）
@@ -195,12 +210,13 @@ python3 scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 
 
 ```
 scripts/
-├── radar.py          # CLI 入口薄壳（18 行）→ python3 scripts/radar.py <子命令>
-├── frames.py         # 抽帧入口薄壳（17 行）→ python3 scripts/frames.py --bv ...
-├── bili_qr_login.py  # 扫码登录工具
-├── apply-cron.py     # cron 工具
+├── radar.py          # CLI 入口薄壳（18 行）→ python scripts/radar.py <子命令>
+├── frames.py         # 抽帧入口薄壳（17 行）→ python scripts/frames.py --bv ...
+├── init.py           # 初始化 state/（拷模板 + 写默认 config.json + 打印 cookie 路径）
+├── bili_qr_login.py  # 扫码登录工具（纯标准库；qrcode 可选，只影响出图）
+├── schedule.py       # 调度工具（打印 rrule/prompt，不改系统 cron）
 ├── bili_radar/        # 包（无 __init__.py）
-│   ├── core.py       基建：常量/路径/cookie/配置/die（60 行，零依赖）
+│   ├── core.py       基建：常量/路径/cookie/配置/die（101 行，零依赖）
 │   ├── client.py     请求层：退避/熔断/wbi/csrf/GET+POST（173 行）
 │   ├── gates.py      写闸：冷却/频控/失败关闸/账本（144 行）
 │   ├── cli.py        argparse 主入口 + 全量 re-export（153 行）
@@ -213,26 +229,26 @@ scripts/
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 37 用例（unittest，零网络）
+└── tests/            # 114 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
-外部调用走 `python3 scripts/radar.py <cmd>`，不要直接 import `bili_radar.*`。
+外部调用走 `python scripts/radar.py <cmd>`，不要直接 import `bili_radar.*`。
 
 ## 测试（2026-10-27 起自带）
 
 零第三方依赖，纯 unittest + mock（不碰真实账号/网络/凭据）：
 
 ```bash
-cd <skill>/scripts && python3 -m unittest discover tests -v
+cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-37 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+114 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
-state_dir 路径（包化后不能算成 skills/interests）。
+state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
 
-## 报告格式（`interests/out/<日期>.md`）
+## 报告格式（`state/out/<日期>.md`）
 
 ```markdown
 # 兴趣雷达 · 2026-10-15
@@ -253,9 +269,21 @@ state_dir 路径（包化后不能算成 skills/interests）。
 - **每周一次**：`stats` 汇总 → **提议**增删兴趣线，等本人点头才改 `profile.md`
 - 别自己改 `profile.md`，那是本人的地盘
 
-## 定时（cron）
-按 `openclaw cron` 配置，建议：独立 session + 便宜模型 + `delivery.mode=announce`（正常回 NO_REPLY = 静默，异常才开口）。
-模式用 `scripts/apply-cron.py` 一键切：
-- **all**：全天每小时（`0 * * * *`）
-- **valley（梁文谷）**：只在 DeepSeek 谷时的小时跑（`0 0-8,12,13,18-23 * * *`）—— 工作日 9-12/14-18 是高峰，其余含周末都是谷时
-创建/修改 cron 的投递参数按你的渠道配置解析（微信类渠道通常要 `channel` + `to` + `accountId`）。
+## 定时（DSH 的 schedule 工具）
+
+本机没有 `openclaw cron`（原 `scripts/apply-cron.py` 已删）。定时任务由 agent 用 **`schedule_create`** 建，
+参数是 `DTSTART` + `RRULE` 两行加一段 prompt —— 这三样都由 `scripts/schedule.py` 直接打印，复制即可：
+
+```bash
+python scripts/schedule.py valley        # 打印谷时模式的 rrule + prompt，并记进 state/config.json
+python scripts/schedule.py all           # 全天每小时
+python scripts/schedule.py --rrule-only  # 只要 rrule
+python scripts/schedule.py valley --minute 43   # 换个分钟偏移（默认 17，避开整点）
+```
+
+- **all**：全天每小时（`RRULE:FREQ=DAILY;BYHOUR=0,…,23;BYMINUTE=17`）
+- **valley（梁文谷）**：只在 DeepSeek 谷时的小时跑（`BYHOUR=0,1,2,3,4,5,6,7,8,12,13,18,19,20,21,22,23`）——
+  工作日 9-12/14-18 是高峰，其余含周末都是谷时
+- 建任务时：`target=this_session`（提醒式，正常回 NO_REPLY = 静默）或 `new_once`（每次开新会话写独立报告）；
+  prompt 用 `python scripts/schedule.py --prompt` 打出来的那份（源文件 `templates/schedule-prompt.md`，可自己改）
+- 频率别贪：每小时一轮 ≈ 一天 24 次；真要紧的是**反馈回路**，不是跑得多

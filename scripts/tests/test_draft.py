@@ -66,14 +66,14 @@ class DraftBase(unittest.TestCase):
         R.cmd_draft(a)
 
     def _last_id(self):
-        recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
+        recs = [json.loads(l) for l in self._drafts_file().read_text(encoding="utf-8").splitlines() if l.strip()]
         return recs[-1]["id"]
 
 
 class TestDraftNew(DraftBase):
     def test_new_creates_pending(self):
         self._new()
-        recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
+        recs = [json.loads(l) for l in self._drafts_file().read_text(encoding="utf-8").splitlines() if l.strip()]
         self.assertEqual(len(recs), 1)
         self.assertEqual(recs[0]["status"], "pending")
 
@@ -108,14 +108,15 @@ class TestDraftApprove(DraftBase):
         import contextlib
         import io
         self._new()
-        recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
+        recs = [json.loads(l) for l in self._drafts_file().read_text(encoding="utf-8").splitlines() if l.strip()]
         recs[0]["created_at"] = (datetime.now() - timedelta(hours=25)).isoformat()
-        self._drafts_file().write_text(json.dumps(recs[0], ensure_ascii=False) + "\n")
+        self._drafts_file().write_text(json.dumps(recs[0], ensure_ascii=False) + "\n",
+                                       encoding="utf-8")
         with self.assertRaises(SystemExit), \
              contextlib.redirect_stderr(io.StringIO()) as err:
             self._approve()
         self.assertIn("自动作废", err.getvalue())
-        recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
+        recs = [json.loads(l) for l in self._drafts_file().read_text(encoding="utf-8").splitlines() if l.strip()]
         self.assertEqual(recs[0]["status"], "expired")
 
     def test_approve_dry_run(self):
@@ -123,7 +124,7 @@ class TestDraftApprove(DraftBase):
         with mock.patch("bili_radar.draft.get", return_value={"data": {"aid": 42}}) as g:
             self._approve(yes=False)  # 不抛
             self.assertTrue(g.called)  # view 查了，但没发
-        recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
+        recs = [json.loads(l) for l in self._drafts_file().read_text(encoding="utf-8").splitlines() if l.strip()]
         self.assertEqual(recs[0]["status"], "pending")
 
     def test_approve_sends_and_marks_sent(self):
@@ -131,7 +132,7 @@ class TestDraftApprove(DraftBase):
         with mock.patch("bili_radar.draft.get", return_value={"data": {"aid": 42}}), \
              mock.patch("bili_radar.draft.post_reply", return_value={"code": 0, "data": {"rpid_str": "999"}}):
             self._approve(yes=True)
-        recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
+        recs = [json.loads(l) for l in self._drafts_file().read_text(encoding="utf-8").splitlines() if l.strip()]
         self.assertEqual(recs[0]["status"], "sent")
         self.assertEqual(recs[0]["sent_rpid"], "999")
 
@@ -147,7 +148,7 @@ class TestDraftApprove(DraftBase):
              mock.patch("bili_radar.draft.post_reply", return_value={"code": -400, "message": "bad"}):
             with self.assertRaises(SystemExit):
                 self._approve(yes=True)
-        recs = [json.loads(l) for l in self._drafts_file().read_text().splitlines() if l.strip()]
+        recs = [json.loads(l) for l in self._drafts_file().read_text(encoding="utf-8").splitlines() if l.strip()]
         self.assertEqual(recs[0]["status"], "failed")
 
 

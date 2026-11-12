@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """history.py —— 参数变更账本（A4 · 2026-11-02）。
 
-interests/param-history.jsonl：给 config 变更加「来路」——对齐 SurfCore-Life
+state_dir()/param-history.jsonl：给 config 变更加「来路」——对齐 SurfCore-Life
 life_history 的精华：**谁改的、为什么改、改前改后、事后观察、与回滚的关系**。
 铁律：reason 只记人（老板/我）明说的理由，程序不编造。
 
@@ -127,7 +127,7 @@ def cmd_cfg_log(a):
     if not rows:
         print("参数变更账本为空（还没人改过参数）—— 用 config set/restore 会在这里留痕")
         return
-    print(f"参数变更账本 · {len(rows)} 条（interests/param-history.jsonl）\n")
+    print(f"参数变更账本 · {len(rows)} 条（state_dir()/param-history.jsonl）\n")
     for r in rows:
         ts = r.get("ts", "?")[:16]
         if r.get("kind") == "change":
