@@ -38,6 +38,7 @@ from bili_radar.comment import (anon_get, cmd_check_reply, cmd_comment, cmd_comm
 from bili_radar.draft import cmd_draft, drafts_file, load_drafts, save_drafts
 from bili_radar.dynamic import cmd_dynamic, cmd_dynamic_del
 from bili_radar.feedback import cmd_engagement, cmd_feedback, cmd_stats
+from bili_radar.jitter import cmd_jitter
 from bili_radar.like import cmd_like
 from bili_radar.notify import cmd_dm, cmd_msg, cmd_notify, radar_unread
 from bili_radar.verify_params import cmd_verify_params
@@ -85,6 +86,12 @@ def build_parser():
     s.add_argument("--cancel", action="store_true", help="取消赞（不冷却、不计频控）")
     s.add_argument("--yes", action="store_true", help="真正发出（默认干跑）")
     s.set_defaults(fn=cmd_like)
+
+    s = sub.add_parser("jitter")
+    s.add_argument("--max-min", dest="max_min", type=int, default=12,
+                   help="最多抖几分钟（默认 12；三角分布，多数时候接近 0）")
+    s.add_argument("--sleep", action="store_true", help="真的睡这么久（不加只打印会等多久）")
+    s.set_defaults(fn=cmd_jitter)
 
     s = sub.add_parser("check-reply")
     s.add_argument("--bv", required=True)

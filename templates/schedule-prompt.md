@@ -2,6 +2,9 @@
 
 一巡该干什么（22:00–05:00 每小时一巡，白天不排班）：
 
+0. 先抖一下再动手：`python scripts/radar.py jitter --max-min 12 --sleep` —— 它会随机等 0–12 分钟
+   （三角分布，多数很快、偶尔拖到十几分钟），并把实际等了多久打印出来。别自己决定要不要等，
+   也别改成固定值：每次都在同一分钟开门就是机器味儿。
 1. 先看有没有人回我：`python scripts/radar.py notify --new-only`。老板在我评论下回一句，就
    `python scripts/radar.py feedback --topic "…" --signal like|skip|note --bv BV1xxx` 记一条，
    顺手更新 `state/profile.md` 的兴趣线（加分/降权/新增），然后回他一句确认。一条都不许丢。

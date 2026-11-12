@@ -20,7 +20,7 @@ jobs:
       - name: 语法检查
         run: python -m compileall -q scripts
 
-      # 132 个用例全是纯 unittest + tempfile：零网络、零 cookie、1 秒内跑完
+      # 135 个用例全是纯 unittest + tempfile：零网络、零 cookie、1 秒内跑完
       - name: 单元测试
         working-directory: scripts
         run: python -m unittest discover -s tests -v

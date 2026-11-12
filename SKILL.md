@@ -66,6 +66,7 @@ python $R engagement [--days N]                    # 活跃度评估：老板反
 python $R reply --bv BV1xxx                        # **@ 主号 只走这个**（默认干跑；查 mention 频控 + 同一视频只发一次）
 python $R feed --num 12 --rounds 2                 # 刷首页推荐流（让算法决定看什么，不按关键词挖）
 python $R like --bv BV1xxx --yes                   # 点赞（--cancel 取消；同一视频只点一次）
+python $R jitter --max-min 12 --sleep              # 巡更前抖一下（0–12 分钟，别每次都准点）
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
@@ -86,6 +87,8 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 ## 刷着玩模式（2026-11-13 老板改口径）
 
 **作息**：夜猫子 + 晚班保安 —— 22:00–05:00 每小时巡一次（`BYMINUTE=43`），白天不排班；一巡 15 分钟内收尾，多数时候只是看，0 互动是正常结果。
+
+**抖动**：`BYMINUTE=43` 只是闹钟，不是开门时间。每次触发先 `radar.py jitter --max-min 12 --sleep`——随机等 0–12 分钟（三角分布，多数很准点、偶尔拖十几分钟），实际等待记在 `state/jitter-log.jsonl`。别自己决定要不要等，也别改成固定值。
 
 老板原话：「像正常人一样刷 B 站；遇到喜欢的点赞，评论（有问题可以评论），遇到觉得我感兴趣的可以艾特我，一般我回复你
 就代表我感兴趣，你就可以按照建画像了。你自己刷没必要按照雷达，纯给你自己学习。」
@@ -243,18 +246,19 @@ scripts/
 │   ├── core.py       基建：常量/路径/cookie/配置/die（101 行，零依赖）
 │   ├── client.py     请求层：退避/熔断/wbi/csrf/GET+POST（173 行）
 │   ├── gates.py      写闸：冷却/频控/失败关闸/账本（144 行）
-│   ├── cli.py        argparse 主入口 + 全量 re-export（223 行）
+│   ├── cli.py        argparse 主入口 + 全量 re-export（230 行）
 │   ├── browse.py     浏览：check/搜索/首页流/字幕/seen（187 行）
 │   ├── comment.py    评论：@主号/自发/快筛/可见性（375 行，最大）
 │   ├── draft.py      草稿审核状态机（184 行）
 │   ├── notify.py     通知与私信（198 行）
 │   ├── dynamic.py    动态发/删（77 行）
 │   ├── like.py       点赞 / 取消赞（61 行）
+│   ├── jitter.py     巡更随机抖动（50 行）
 │   ├── feedback.py   反馈/统计/活跃度（138 行）
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 132 用例（unittest，零网络）
+└── tests/            # 135 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -268,7 +272,7 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-132 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+135 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
 state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
@@ -303,6 +307,7 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 python scripts/schedule.py valley        # 打印谷时模式的 rrule + prompt，并记进 state/config.json
 python scripts/schedule.py all           # 全天每小时
 python scripts/schedule.py night --minute 43    # 夜班保安：22:00–05:00 每小时巡一次（白天不排班）
+# 每次触发后先 `radar.py jitter --max-min 12 --sleep` 抖一下：rrule 是死的，抖动在运行时做
 python scripts/schedule.py --every-minutes 10   # 固定间隔：每 10 分钟一轮
 python scripts/schedule.py --rrule-only  # 只要 rrule
 python scripts/schedule.py valley --minute 43   # 换个分钟偏移（默认 17，避开整点）
