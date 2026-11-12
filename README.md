@@ -54,7 +54,7 @@
 ## 测试
 
 ```bash
-cd scripts && python -m unittest discover -s tests -v   # 120 用例 / 零网络 / 零 cookie / <1s
+cd scripts && python -m unittest discover -s tests -v   # 127 用例 / 零网络 / 零 cookie / <1s
 ```
 
 GitHub Actions 在 push 与 PR 上跑同一套：`.github/workflows/ci.yml`（语法检查 + 单测 + CLI 冒烟）。
@@ -78,15 +78,18 @@ python scripts/radar.py search --kw "关键词" --days 7
 
 定时不走系统 cron：由 agent 用 DSH 的 `schedule_create` 建任务，rrule 与 prompt 见下节。
 
-## 调度：all / 梁文谷
+## 调度：固定间隔 / all / 梁文谷
 
 ```bash
+python scripts/schedule.py --every-minutes 10  # 固定间隔：每 10 分钟一轮（本机当前用这个）
 python scripts/schedule.py valley              # 打印谷时模式的 DTSTART+RRULE 与 prompt
 python scripts/schedule.py all --rrule-only    # 全天每小时，只要 rrule
 python scripts/schedule.py valley --minute 43  # 换分钟偏移（默认 17，避开整点）
 ```
 
 把打印出来的 rrule + prompt 交给 `schedule_create`（`target=this_session` 静默提醒式，`new_once` 每次开新会话写报告）。
+间隔模式是 `FREQ=MINUTELY;INTERVAL=N`——DSH 的 rrule 子集里 `MINUTELY`/`HOURLY` 不接受 `BY` 部件，
+所以它不是「每小时第 17 分钟」那种写法；间隔要大于单轮预算（一轮按 8 分钟收尾）。
 谷时口径（DeepSeek 官方）：**工作日 9:00-12:00、14:00-18:00 是高峰，其余（含整个周末）都是谷时**。
 
 ## 命令速查
@@ -118,9 +121,9 @@ AGENT.md              代码图谱：模块 / 符号 / 接线 / 键名（改代�
 PARAMETERS.md         参数地图：全参数接线审计、漂移与死配置
 scripts/radar.py      CLI 入口：取数 / 判重 / 记反馈 / 权重
 scripts/init.py       初始化 state/（拷模板 + 默认 config.json）
-scripts/schedule.py   调度：打印 rrule + prompt 给 DSH
+scripts/schedule.py   调度：打印 rrule + prompt 给 DSH（all / valley / --every-minutes）
 scripts/bili_radar/   实现（core / client / gates + 各域模块）
-scripts/tests/        120 用例（unittest，零网络）
+scripts/tests/        127 用例（unittest，零网络）
 state/                运行态（gitignore）：profile / charter / config / out / frames
 templates/            profile.md、charter.md、schedule-prompt.md
 ```

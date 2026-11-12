@@ -229,7 +229,7 @@ scripts/
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 120 用例（unittest，零网络）
+└── tests/            # 127 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -243,7 +243,7 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-120 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+127 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
 state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
@@ -277,6 +277,7 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 ```bash
 python scripts/schedule.py valley        # 打印谷时模式的 rrule + prompt，并记进 state/config.json
 python scripts/schedule.py all           # 全天每小时
+python scripts/schedule.py --every-minutes 10   # 固定间隔：每 10 分钟一轮
 python scripts/schedule.py --rrule-only  # 只要 rrule
 python scripts/schedule.py valley --minute 43   # 换个分钟偏移（默认 17，避开整点）
 ```
@@ -284,6 +285,10 @@ python scripts/schedule.py valley --minute 43   # 换个分钟偏移（默认 17
 - **all**：全天每小时（`RRULE:FREQ=DAILY;BYHOUR=0,…,23;BYMINUTE=17`）
 - **valley（梁文谷）**：只在 DeepSeek 谷时的小时跑（`BYHOUR=0,1,2,3,4,5,6,7,8,12,13,18,19,20,21,22,23`）——
   工作日 9-12/14-18 是高峰，其余含周末都是谷时
+- **固定间隔（`--every-minutes N`）**：`RRULE:FREQ=MINUTELY;INTERVAL=N`。本机当前就是这种：
+  **每 10 分钟一轮，一次触发只扫一轮**。DSH 的 rrule 子集里 `MINUTELY`/`HOURLY` **不接受 BY 部件**，
+  所以间隔模式没有 `BYHOUR`/`BYMINUTE`，`DTSTART` 只是对齐起点。间隔必须大于单轮预算（现在按 8 分钟收尾），
+  否则会排队撞轮
 - 建任务时：`target=this_session`（提醒式，正常回 NO_REPLY = 静默）或 `new_once`（每次开新会话写独立报告）；
   prompt 用 `python scripts/schedule.py --prompt` 打出来的那份（源文件 `templates/schedule-prompt.md`，可自己改）
-- 频率别贪：每小时一轮 ≈ 一天 24 次；真要紧的是**反馈回路**，不是跑得多
+- 频率别贪：每小时一轮 ≈ 一天 24 次；每 10 分钟一轮 ≈ 一天 144 次——高频的意义在**及时**，不在覆盖，别把预算耗在空轮上

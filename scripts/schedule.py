@@ -14,7 +14,14 @@ RFC 5545 子集（DTSTART + RRULE）+ 一段 prompt。所以本脚本不再改 c
     python scripts/schedule.py all            # 全天每小时
     python scripts/schedule.py valley         # 梁文谷：只在 DeepSeek 谷时的小时跑
     python scripts/schedule.py all --minute 17 --rrule-only
+    python scripts/schedule.py --every-minutes 10   # 固定间隔：每 10 分钟一轮
     python scripts/schedule.py --prompt        # 只打印 prompt（不给模式就看当前模式）
+
+两种节奏：
+  * 按小时（`all` / `valley`）—— DTSTART + `FREQ=DAILY;BYHOUR=…;BYMINUTE=…`，错开整点
+  * 按固定间隔（`--every-minutes N`）—— DTSTART + `FREQ=MINUTELY;INTERVAL=N`；
+    DSH 的 rrule 子集里 MINUTELY/HOURLY **不接受 BY 部件**，所以间隔模式不能带 BYHOUR/BYMINUTE。
+    间隔要大于单轮预算（默认一轮 8 分钟收尾），否则会排队撞轮。
 
 谷时口径（DeepSeek 官方定价，2026-10 口径）：
     工作日 9:00–12:00、14:00–18:00 = **高峰**，其余（含整个周末）= **谷时**
@@ -25,6 +32,7 @@ RFC 5545 子集（DTSTART + RRULE）+ 一段 prompt。所以本脚本不再改 c
 """
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -64,11 +72,47 @@ def build_rrule(mode: str, minute: int = 17) -> str:
             f"RRULE:FREQ=DAILY;BYHOUR={byhour};BYMINUTE={minute}")
 
 
+# 间隔模式在 config 里记成 `every10m`，方便读回来重建 rrule。
+INTERVAL_MODE_RE = re.compile(r"^every(\d+)m$")
+INTERVAL_MIN, INTERVAL_MAX = 5, 1440
+
+
+def interval_mode(every: int) -> str:
+    return f"every{every}m"
+
+
+def build_interval_rrule(every: int) -> str:
+    """固定间隔的 rrule：DTSTART 对齐到下一个 N 分钟格点（从当天 0 点起算）。"""
+    if not INTERVAL_MIN <= every <= INTERVAL_MAX:
+        raise ValueError(f"间隔要落在 {INTERVAL_MIN}–{INTERVAL_MAX} 分钟：{every}")
+    now = datetime.now(TZ).replace(second=0, microsecond=0)
+    minutes_today = now.hour * 60 + now.minute
+    start = now.replace(hour=0, minute=0) + timedelta(
+        minutes=(minutes_today // every + 1) * every)
+    return (f"DTSTART;TZID=Asia/Shanghai:{start:%Y%m%dT%H%M%S}\n"
+            f"RRULE:FREQ=MINUTELY;INTERVAL={every}")
+
+
+def describe(mode: str) -> str:
+    m = INTERVAL_MODE_RE.match(mode)
+    if m:
+        return f"每 {m.group(1)} 分钟跑一轮（一次触发只扫一轮）"
+    return DESC[mode]
+
+
+def plan(mode: str, minute: int = 17) -> str:
+    """把模式翻译成 rrule；间隔模式和小时模式走不同分支。"""
+    m = INTERVAL_MODE_RE.match(mode)
+    if m:
+        return build_interval_rrule(int(m.group(1)))
+    return build_rrule(mode, minute)
+
+
 def prompt_text() -> str:
     f = REPO_ROOT / "templates" / "schedule-prompt.md"
     if f.is_file():
         return f.read_text(encoding="utf-8").strip()
-    return "跑一轮兴趣雷达，按 code/interest-radar/SKILL.md 的一轮流程执行；正常静默。"
+    return "跑一轮兴趣雷达，按 work/interest-radar/SKILL.md 的一轮流程执行；正常静默。"
 
 
 def save_state(mode: str, rrule: str) -> Path:
@@ -91,15 +135,25 @@ def save_state(mode: str, rrule: str) -> Path:
 
 def main():
     ap = argparse.ArgumentParser(description="兴趣雷达调度模式（DSH）：打印 rrule / prompt")
-    ap.add_argument("mode", nargs="?", choices=sorted(HOURS), help="all | valley（省略=看当前）")
+    ap.add_argument("mode", nargs="?", choices=sorted(HOURS) + ["every<N>m"],
+                    help="all | valley（省略=看当前）")
     ap.add_argument("--minute", type=int, default=17, help="每小时第几分钟触发（默认 17，避开整点）")
+    ap.add_argument("--every-minutes", type=int, default=0, metavar="N",
+                    help=f"改成固定间隔：每 {INTERVAL_MIN}–{INTERVAL_MAX} 分钟一轮")
     ap.add_argument("--prompt", action="store_true", help="只打印 prompt")
     ap.add_argument("--rrule-only", action="store_true", help="只打印 rrule")
     a = ap.parse_args()
 
     cur = (read_config().get("schedule") or {}).get("mode") or "all"
-    mode = a.mode or cur
-    rrule = build_rrule(mode, a.minute)
+    if a.every_minutes:
+        if not INTERVAL_MIN <= a.every_minutes <= INTERVAL_MAX:
+            ap.error(f"--every-minutes 要落在 {INTERVAL_MIN}–{INTERVAL_MAX}")
+        mode = interval_mode(a.every_minutes)
+    else:
+        mode = a.mode or cur
+        if not INTERVAL_MODE_RE.match(mode) and mode not in HOURS:
+            ap.error(f"不认识的模式：{mode}（用 all / valley / --every-minutes N）")
+    rrule = plan(mode, a.minute)
     if mode != cur:
         save_state(mode, rrule)
 
@@ -107,7 +161,7 @@ def main():
         print(prompt_text())
         return
 
-    print(f"模式：**{mode}** —— {DESC[mode]}")
+    print(f"模式：**{mode}** —— {describe(mode)}")
     print(f"rrule（喂给 schedule_create）：\n{rrule}")
     if not a.rrule_only:
         print("\nprompt：\n" + prompt_text())

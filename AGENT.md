@@ -63,7 +63,7 @@ graph TD
 | `frames.py` | 17 | 抽帧薄壳 → `bili_radar.media.frames.main` | — |
 | `init.py` | 114 | 初始化 state/：建 out/frames、拷模板、写默认 config.json（写操作全关）、打印 cookie 路径 | `DEFAULT_CONFIG:27` `_copy_template:67` `main:79` |
 | `bili_qr_login.py` | 180 | 扫码登录自救（纯标准库 urllib；`qrcode` 仅出图用，可选依赖） | `http_json:47` `follow:53` `cookies_dict:64` `main:68` `write_cookie:152` |
-| `schedule.py` | 119 | 打印调度的 rrule + prompt（all / valley）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:38` `HOURS:39` `next_start:49` `build_rrule:59` `prompt_text:67` `save_state:74` `main:92` |
+| `schedule.py` | 173 | 打印调度的 rrule + prompt（all / valley / `--every-minutes`）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:46` `HOURS:47` `next_start:57` `build_rrule:67` `INTERVAL_MODE_RE:76` `build_interval_rrule:84` `describe:96` `plan:103` `prompt_text:111` `save_state:118` `main:136` |
 | `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
 | `bili_radar/gates.py` | 144 | 写闸 | `note_failure:15` `write_log:33` `_write_cooldown:46` `_write_gate:73` `_write_fail:95` `_record_write:123` `mention_log:128` `_ago_h:141` |
@@ -139,7 +139,7 @@ graph TD
 | **活跃度判读（活跃/沉默/故障）** | `feedback.py` | `cmd_engagement:65` |
 | **抽帧九宫格 / 硬字幕长图** | `media/frames.py` | `pick_points:203` `build_grid:216` `main:259` |
 | **稀疏下载**（moov 解析、GOP 区间、零填充） | `media/mp4_sparse.py` | `_SparsePlan:78` `sparse_plan:145` `build_sparse:184` |
-| **调度模式（all/valley）** | `schedule.py` | `build_rrule()` `save_state()` |
+| **调度模式（all/valley/每 N 分钟）** | `schedule.py` | `build_rrule()` `build_interval_rrule()` `plan()` `save_state()` |
 | **cookie 失效自救（扫码）** | `bili_qr_login.py` | 脚本体（`QR_PATH` 输出二维码 → 轮询 → 跟随 crossDomain → 覆写 cookie） |
 
 ---
@@ -222,11 +222,13 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | 文件 | 覆盖 | 用例 |
 |---|---|---|
 | `test_backoff.py` | 退避/熔断 | `test_retry_sleep_exponential` `..._cap_60` `test_fuse_dies_after_3` `test_note_ok_resets_streak` `test_fuse_not_triggered_below_3` `test_get_business_code_no_retry` |
+| `test_cli.py` | CLI 参数表（闸门文案提到的开关必须真的存在） | 3 例 |
 | `test_core.py` | `state_dir` / `cookie_path` 路径口径 | `TestStateDir` `TestCookiePath` `TestWorkspaceRoot` |
 | `test_dm.py` | dm 水位（自己消息不推水位） | `TestDmWatermark` 下 5 例 |
 | `test_draft.py` | 草稿状态机 | 入稿校验 / 同人 30 天 / 水军昵称拒 / 24h 过期 / 审批 / 失败计数 |
 | `test_engagement.py` | 活跃度三分支 + 窗口 | 5 例 |
 | `test_frames_plan.py` | `_SparsePlan` sample→offset 映射（stts/stsc 坑） | 5 例 |
+| `test_schedule.py` | rrule 生成（DAILY+BY 部件 / MINUTELY 间隔无 BY） | 7 例 |
 | `test_write_cooldown.py` | 写冷却（两账本取最新） | 5 例 |
 
 **规矩**：改核心闸逻辑（draft/engagement/冷却/退避）**必须跑一遍全绿**；新功能补测试。

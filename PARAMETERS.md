@@ -93,8 +93,9 @@
 
 | 参数 | 运行值 | 生效方式 | 状态 |
 |---|---|---|---|
-| `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0..23;BYMINUTE=17` | 外部定时（DSH `schedule_create`，rrule 由 `schedule.py` 生成），**radar 代码不读** | ✅ 接线（外部） |
+| `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0..23;BYMINUTE=17`；间隔模式 `every10m` / `FREQ=MINUTELY;INTERVAL=10` | 外部定时（DSH `schedule_create`，rrule 由 `schedule.py` 生成），**radar 代码不读** | ✅ 接线（外部） |
 | 触发不落整点 | `BYMINUTE=17` | `schedule.py --minute`（DSH rrule 无 stagger，用分钟偏移等效） | ✅ 接线（外部） |
+| 跑一轮的间隔（分钟） | 10 | `schedule.py --every-minutes`（`FREQ=MINUTELY;INTERVAL=N`，无 BY 部件） | ✅ 接线（外部） |
 | 谷时口径（valley） | 工作日 9-12/14-18 高峰 | 📐 注释口径 | 📐 |
 
 ## G 组 · 请求层（代码常量，🔒 不可配）
@@ -138,12 +139,12 @@
 
 1. **改 config 参数** → 一律走 `radar.py config set <段.键> <值> [--yes]`（A3，2026-11-02）：**默认干跑**（打印 before→after，不写）；`--yes` 才写，**写前自动备份**（`config.json.bak-<ts>-<rand>`，保留最近 10 份）、写后重读校验；改错了 `config restore --list` 找备份 → `config restore <备份名> --yes` 一键还原（还原前会把当前值再备份一份，反悔可回）。敏感项（开关/白名单/频控）与死配置/漂移会显式提醒。`rate` 改 @ 频控同样自动备份。**每次变更自动写入参数变更账本**（A4，`state/param-history.jsonl`：谁/何时/为何改、前后值；restore 记回滚行与实际变动的参数）；顺手 `--reason "为什么改"`，事后 `config log` 看时间线、`config observe <变更id> --note "效果如何"` 补观察——**reason/观察只记人明说的，不编造**。热加载，下一轮立即生效。敏感项（频控/开关/白名单）改完**必须告诉我**，涉及账号安全的改动最好等我确认。
 2. **改模型规则**（阈值/条数/流程）→ 改 `SKILL.md` + `charter.md` **两处一起**（本文件揭示：单改一处必漂移）。charter 是最终口径。
-3. **改调度** → `scripts/schedule.py`（all/valley）打印 rrule + prompt，再用 DSH 的 `schedule_create` 建/改任务；`config.json` 的 `schedule` 段只是记录，不是权威。
+3. **改调度** → `scripts/schedule.py`（all / valley / `--every-minutes N`）打印 rrule + prompt，再用 DSH 的 `schedule_create` 建/改任务；`config.json` 的 `schedule` 段只是记录，不是权威。
 4. **验证**：
    - `python scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂到定时任务做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
    - `python scripts/radar.py rate` — 看 @ 频控用量与参数
    - `radar.py mention --bv <BV> --dry-run`（默认干跑）— 验闸与文案
-   - `cd scripts && python -m unittest discover tests -v` — 120 用例回归（零网络）
+   - `cd scripts && python -m unittest discover tests -v` — 127 用例回归（零网络）
 5. **审计口径**：本文件每次改参数后顺手核一遍「接线/漂移」列，保持地图与代码同步。
 
 ---
