@@ -49,6 +49,15 @@ class TestDailyRrule(unittest.TestCase):
         r = sched.build_rrule("all", 17)
         self.assertIn("BYHOUR=" + ",".join(str(h) for h in range(24)), r)
 
+    def test_night_shift_excludes_daytime(self):
+        r = sched.build_rrule("night", 43)
+        self.assertIn("BYHOUR=0,1,2,3,4,5,22,23", r)
+        # 白天不排班：9-21 点一个都不许出现
+        for h in range(6, 22):
+            self.assertNotIn(f"={h},", r)
+            self.assertNotIn(f",{h},", r)
+        self.assertIn("BYMINUTE=43", r)
+
 
 if __name__ == "__main__":
     unittest.main()

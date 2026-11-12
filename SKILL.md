@@ -85,6 +85,8 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 刷着玩模式（2026-11-13 老板改口径）
 
+**作息**：夜猫子 + 晚班保安 —— 22:00–05:00 每小时巡一次（`BYMINUTE=43`），白天不排班；一巡 15 分钟内收尾，多数时候只是看，0 互动是正常结果。
+
 老板原话：「像正常人一样刷 B 站；遇到喜欢的点赞，评论（有问题可以评论），遇到觉得我感兴趣的可以艾特我，一般我回复你
 就代表我感兴趣，你就可以按照建画像了。你自己刷没必要按照雷达，纯给你自己学习。」
 
@@ -252,7 +254,7 @@ scripts/
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 131 用例（unittest，零网络）
+└── tests/            # 132 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -266,7 +268,7 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-131 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+132 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
 state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
@@ -300,6 +302,7 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 ```bash
 python scripts/schedule.py valley        # 打印谷时模式的 rrule + prompt，并记进 state/config.json
 python scripts/schedule.py all           # 全天每小时
+python scripts/schedule.py night --minute 43    # 夜班保安：22:00–05:00 每小时巡一次（白天不排班）
 python scripts/schedule.py --every-minutes 10   # 固定间隔：每 10 分钟一轮
 python scripts/schedule.py --rrule-only  # 只要 rrule
 python scripts/schedule.py valley --minute 43   # 换个分钟偏移（默认 17，避开整点）

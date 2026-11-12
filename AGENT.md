@@ -63,7 +63,7 @@ graph TD
 | `frames.py` | 17 | 抽帧薄壳 → `bili_radar.media.frames.main` | — |
 | `init.py` | 114 | 初始化 state/：建 out/frames、拷模板、写默认 config.json（写操作全关）、打印 cookie 路径 | `DEFAULT_CONFIG:27` `_copy_template:67` `main:79` |
 | `bili_qr_login.py` | 180 | 扫码登录自救（纯标准库 urllib；`qrcode` 仅出图用，可选依赖） | `http_json:47` `follow:53` `cookies_dict:64` `main:68` `write_cookie:152` |
-| `schedule.py` | 173 | 打印调度的 rrule + prompt（all / valley / `--every-minutes`）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:46` `HOURS:47` `next_start:57` `build_rrule:67` `INTERVAL_MODE_RE:76` `build_interval_rrule:84` `describe:96` `plan:103` `prompt_text:111` `save_state:118` `main:136` |
+| `schedule.py` | 176 | 打印调度的 rrule + prompt（all / valley / night / `--every-minutes`）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:46` `HOURS:47` `DESC:53` `next_start:60` `build_rrule:70` `INTERVAL_MODE_RE:79` `build_interval_rrule:87` `describe:99` `plan:106` `prompt_text:114` `save_state:121` `main:139` |
 | `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
 | `bili_radar/gates.py` | 144 | 写闸 | `note_failure:15` `write_log:33` `_write_cooldown:46` `_write_gate:73` `_write_fail:95` `_record_write:123` `mention_log:128` `_ago_h:141` |
