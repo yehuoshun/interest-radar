@@ -67,7 +67,7 @@ graph TD
 | `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
 | `bili_radar/gates.py` | 144 | 写闸 | `note_failure:15` `write_log:33` `_write_cooldown:46` `_write_gate:73` `_write_fail:95` `_record_write:123` `mention_log:128` `_ago_h:141` |
-| `bili_radar/cli.py` | 153 | argparse 路由 + re-export | `main:40`（各 `add_parser` 见 3 节） |
+| `bili_radar/cli.py` | 211 | argparse 路由 + re-export | `build_parser:45`（`main:202` 只做 parse + dispatch；各 `add_parser` 见 3 节） |
 | `bili_radar/browse.py` | 145 | 浏览域 | `cmd_check:15` `cmd_search:31` `fetch_subtitle_text:70` `cmd_sub:94` `cmd_seen:121` |
 | `bili_radar/comment.py` | 349 | 评论域（最大） | `post_reply:18` `cmd_reply:37` `cmd_rate:140` `fetch_hot_comments:170` `cmd_comment_check:184` `cmd_comment:234` `anon_get:307` `visible_anon:318` `cmd_check_reply:345` |
 | `bili_radar/draft.py` | 184 | 草稿审核状态机 | `drafts_file:19` `load_drafts:23` `save_drafts:38` `cmd_draft:44` |
@@ -83,7 +83,7 @@ graph TD
 
 ## 3. 命令 → 处理函数 → 模块（CLI 索引）
 
-`scripts/radar.py <cmd>`；登记点在 `bili_radar/cli.py:main()`。
+`scripts/radar.py <cmd>`；登记点在 `bili_radar/cli.py:build_parser()`。
 
 | 子命令 | cli.py 行 | 处理函数 | 实现在 |
 |---|---|---|---|
@@ -255,7 +255,7 @@ cd <skill>/scripts && python -m unittest discover tests -v
 
 | 任务 | 步骤 |
 |---|---|
-| **加一个子命令** | ① 对应域模块写 `cmd_xxx(a)` ② `cli.py:main()` 里 `add_parser` + `set_defaults(fn=cmd_xxx)` ③ 若是一类新写操作 → 走 `_write_gate` ④ 补测试 ⑤ 更新本文件 §3/§4 |
+| **加一个子命令** | ① 对应域模块写 `cmd_xxx(a)` ② `cli.py:build_parser()` 里 `add_parser` + `set_defaults(fn=cmd_xxx)` ③ 若是一类新写操作 → 走 `_write_gate` ④ 补测试 ⑤ 更新本文件 §3/§4 |
 | **调频控** | 改 `state/config.json` 对应段（`mention` / `write.<kind>` / `draft`），或 `radar.py rate --per-hour N`（仅 mention）；不用改代码、不用重启 |
 | **加一个写操作类型** | 在 `config.json.write` 增 `<kind>` 段 + 代码里 `_write_gate("<kind>")` + `_write_fail(d,"<kind>")` |
 | **改请求退避策略** | `client.py:_retry_sleep` / `_note_fail` / `get`；**同步检查 `media/frames.py:http_get_json`** |

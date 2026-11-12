@@ -42,7 +42,8 @@ from bili_radar.notify import cmd_dm, cmd_msg, cmd_notify, radar_unread
 from bili_radar.verify_params import cmd_verify_params
 
 
-def main():
+def build_parser():
+    """搭参数表（独立出来供测试断言：错误提示里提到的开关必须真的存在）。"""
     ap = argparse.ArgumentParser(description="兴趣雷达 · 取数/判重/反馈")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -158,6 +159,8 @@ def main():
     p.add_argument("--reason", help="变更理由（记入账本；只记人明说的，不编造）")
     p.add_argument("--actor", choices=["boss", "agent"], default="agent",
                    help="谁改的（默认 agent；老板亲自跑可写 boss）")
+    p.add_argument("--approved-by", dest="approved_by",
+                   help="敏感项（cfg_tool.SENSITIVE）的老板批准原话——留痕入账本，否则只能走 propose/approve")
     p.set_defaults(fn=cmd_cfg_set)
     p = csub.add_parser("restore")
     p.add_argument("name", nargs="?", help="备份文件名（config.json.bak-<ts>）")
@@ -193,7 +196,11 @@ def main():
     s.add_argument("--days", type=int, default=14, help="统计窗口（默认 14 天）")
     s.set_defaults(fn=cmd_engagement)
 
-    a = ap.parse_args()
+    return ap
+
+
+def main():
+    a = build_parser().parse_args()
     a.fn(a)
 
 

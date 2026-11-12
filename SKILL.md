@@ -219,7 +219,7 @@ scripts/
 │   ├── core.py       基建：常量/路径/cookie/配置/die（101 行，零依赖）
 │   ├── client.py     请求层：退避/熔断/wbi/csrf/GET+POST（173 行）
 │   ├── gates.py      写闸：冷却/频控/失败关闸/账本（144 行）
-│   ├── cli.py        argparse 主入口 + 全量 re-export（153 行）
+│   ├── cli.py        argparse 主入口 + 全量 re-export（211 行）
 │   ├── browse.py     浏览：check/搜索/字幕/seen（145 行）
 │   ├── comment.py    评论：@主号/自发/快筛/可见性（349 行，最大）
 │   ├── draft.py      草稿审核状态机（184 行）
@@ -229,7 +229,7 @@ scripts/
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 114 用例（unittest，零网络）
+└── tests/            # 120 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -243,7 +243,7 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-114 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+120 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
 state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。

@@ -54,7 +54,7 @@
 ## 测试
 
 ```bash
-cd scripts && python -m unittest discover -s tests -v   # 114 用例 / 零网络 / 零 cookie / <1s
+cd scripts && python -m unittest discover -s tests -v   # 120 用例 / 零网络 / 零 cookie / <1s
 ```
 
 GitHub Actions 在 push 与 PR 上跑同一套：`.github/workflows/ci.yml`（语法检查 + 单测 + CLI 冒烟）。
@@ -120,7 +120,7 @@ scripts/radar.py      CLI 入口：取数 / 判重 / 记反馈 / 权重
 scripts/init.py       初始化 state/（拷模板 + 默认 config.json）
 scripts/schedule.py   调度：打印 rrule + prompt 给 DSH
 scripts/bili_radar/   实现（core / client / gates + 各域模块）
-scripts/tests/        114 用例（unittest，零网络）
+scripts/tests/        120 用例（unittest，零网络）
 state/                运行态（gitignore）：profile / charter / config / out / frames
 templates/            profile.md、charter.md、schedule-prompt.md
 ```
