@@ -28,7 +28,7 @@ from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fai
                    atomic_write_config, backup_config, mention_log, note_failure, write_log)
 
 # ── 域模块 ─────────────────────────────────────────────────────
-from bili_radar.browse import cmd_check, cmd_search, cmd_seen, cmd_sub, fetch_subtitle_text
+from bili_radar.browse import cmd_check, cmd_feed, cmd_search, cmd_seen, cmd_sub, fetch_subtitle_text
 from bili_radar.cfg_tool import (cmd_cfg_approve, cmd_cfg_proposals, cmd_cfg_propose,
                    cmd_cfg_reject, cmd_cfg_restore, cmd_cfg_set)
 from bili_radar.history import (append_change, append_observe, append_rollback,
@@ -38,6 +38,7 @@ from bili_radar.comment import (anon_get, cmd_check_reply, cmd_comment, cmd_comm
 from bili_radar.draft import cmd_draft, drafts_file, load_drafts, save_drafts
 from bili_radar.dynamic import cmd_dynamic, cmd_dynamic_del
 from bili_radar.feedback import cmd_engagement, cmd_feedback, cmd_stats
+from bili_radar.like import cmd_like
 from bili_radar.notify import cmd_dm, cmd_msg, cmd_notify, radar_unread
 from bili_radar.verify_params import cmd_verify_params
 
@@ -73,6 +74,17 @@ def build_parser():
     s.add_argument("--reply-to", dest="reply_to", help="楼中楼：回复某条评论的 rpid（带上 root/parent）")
     s.add_argument("--yes", action="store_true", help="真正发出（默认干跑，只打印会发什么）")
     s.set_defaults(fn=cmd_reply)
+
+    s = sub.add_parser("feed")
+    s.add_argument("--num", type=int, default=12, help="每次请求几条（默认 12）")
+    s.add_argument("--rounds", type=int, default=1, help="翻几屏（默认 1，每屏间隔 1.2s）")
+    s.set_defaults(fn=cmd_feed)
+
+    s = sub.add_parser("like")
+    s.add_argument("--bv", required=True)
+    s.add_argument("--cancel", action="store_true", help="取消赞（不冷却、不计频控）")
+    s.add_argument("--yes", action="store_true", help="真正发出（默认干跑）")
+    s.set_defaults(fn=cmd_like)
 
     s = sub.add_parser("check-reply")
     s.add_argument("--bv", required=True)

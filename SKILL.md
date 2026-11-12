@@ -64,6 +64,8 @@ python $R config observe <变更id> --note "…"         # 给某次变更补事
 python $R verify-params [--json]                    # 参数采用对账：config 保存值 vs 运行证据（只读；conflict>0 → exit 3）
 python $R engagement [--days N]                    # 活跃度评估：老板反馈/主动@/批准草稿/报告数 → 判读是否降频
 python $R reply --bv BV1xxx                        # **@ 主号 只走这个**（默认干跑；查 mention 频控 + 同一视频只发一次）
+python $R feed --num 12 --rounds 2                 # 刷首页推荐流（让算法决定看什么，不按关键词挖）
+python $R like --bv BV1xxx --yes                   # 点赞（--cancel 取消；同一视频只点一次）
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
@@ -80,6 +82,21 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 - cookie 文件：`<工作区>/config/bilibili_cookies.txt`（工作区布局 `<workspace>/{code,work}/<项目>`；小号；**失效先跑 `scripts/bili_qr_login.py` 扫码自救**，见下节，不用手动导出）
 - 脚本只做确定性的事；**判断一律由模型做**
+
+## 刷着玩模式（2026-11-13 老板改口径）
+
+老板原话：「像正常人一样刷 B 站；遇到喜欢的点赞，评论（有问题可以评论），遇到觉得我感兴趣的可以艾特我，一般我回复你
+就代表我感兴趣，你就可以按照建画像了。你自己刷没必要按照雷达，纯给你自己学习。」
+
+- 不再按关键词挖线索，改用首页推荐流：`radar.py feed --num 12 --rounds 2`。
+- 真读几条（`radar.py sub <BV>`），读完再决定：
+  - 好 → `radar.py like --bv BV1xxx --yes`（写闸 `write.like`，默认 per_hour 6、同一视频只点一次；`--cancel` 取消赞）
+  - 有话要说 → `radar.py comment --bv BV1xxx --text "…" --yes`（自发评论，≤200 字，**不走 mention 闸**）
+  - 觉得老板会感兴趣 → `radar.py reply --bv BV1xxx --text "@夜灬瞬 …" --yes`（**只有这条走 mention 闸 / 频控 / 同一视频只发一次**）
+- 判据：只对真读完、有具体话可说的视频动手；推广、广告、纯搬运、梗图不点不评。零互动是合法结果，不为产量凑。
+- 老板回复后（这是建画像的主信号）：`radar.py notify --new-only` 取回复 → `radar.py check-reply --bv …` 看可见性 →
+  按回复内容 `radar.py feedback --topic "…" --signal like|skip|note --bv BV1xxx` 记账 → 更新 `state/profile.md` 的兴趣线（加分/降权/新增）。
+- 红线不变：只 @ 主号；写操作默认干跑（加 `--yes` 才真发）；兴趣档案不出本机。
 
 ## 一轮流程（严格按序）
 
@@ -224,17 +241,18 @@ scripts/
 │   ├── core.py       基建：常量/路径/cookie/配置/die（101 行，零依赖）
 │   ├── client.py     请求层：退避/熔断/wbi/csrf/GET+POST（173 行）
 │   ├── gates.py      写闸：冷却/频控/失败关闸/账本（144 行）
-│   ├── cli.py        argparse 主入口 + 全量 re-export（211 行）
-│   ├── browse.py     浏览：check/搜索/字幕/seen（145 行）
-│   ├── comment.py    评论：@主号/自发/快筛/可见性（349 行，最大）
+│   ├── cli.py        argparse 主入口 + 全量 re-export（223 行）
+│   ├── browse.py     浏览：check/搜索/首页流/字幕/seen（187 行）
+│   ├── comment.py    评论：@主号/自发/快筛/可见性（375 行，最大）
 │   ├── draft.py      草稿审核状态机（184 行）
 │   ├── notify.py     通知与私信（198 行）
 │   ├── dynamic.py    动态发/删（77 行）
+│   ├── like.py       点赞 / 取消赞（61 行）
 │   ├── feedback.py   反馈/统计/活跃度（138 行）
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 127 用例（unittest，零网络）
+└── tests/            # 131 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -248,7 +266,7 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-127 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+131 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
 state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。

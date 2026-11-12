@@ -67,12 +67,13 @@ graph TD
 | `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
 | `bili_radar/gates.py` | 144 | 写闸 | `note_failure:15` `write_log:33` `_write_cooldown:46` `_write_gate:73` `_write_fail:95` `_record_write:123` `mention_log:128` `_ago_h:141` |
-| `bili_radar/cli.py` | 211 | argparse 路由 + re-export | `build_parser:45`（`main:202` 只做 parse + dispatch；各 `add_parser` 见 3 节） |
-| `bili_radar/browse.py` | 145 | 浏览域 | `cmd_check:15` `cmd_search:31` `fetch_subtitle_text:70` `cmd_sub:94` `cmd_seen:121` |
-| `bili_radar/comment.py` | 349 | 评论域（最大） | `post_reply:18` `cmd_reply:37` `cmd_rate:140` `fetch_hot_comments:170` `cmd_comment_check:184` `cmd_comment:234` `anon_get:307` `visible_anon:318` `cmd_check_reply:345` |
+| `bili_radar/cli.py` | 223 | argparse 路由 + re-export | `build_parser:46`（`main:214` 只做 parse + dispatch；各 `add_parser` 见 3 节） |
+| `bili_radar/browse.py` | 187 | 浏览域（含首页推荐流 `cmd_feed`） | `cmd_check:15` `cmd_search:31` `cmd_feed:70` `fetch_subtitle_text:111` `cmd_sub:135` `cmd_seen:162` |
+| `bili_radar/comment.py` | 375 | 评论域（最大） | `post_reply:20` `cmd_reply:39` `cmd_rate:142` `fetch_hot_comments:185` `cmd_comment_check:199` `cmd_comment:249` `anon_get:332` `visible_anon:343` `cmd_check_reply:370` |
 | `bili_radar/draft.py` | 184 | 草稿审核状态机 | `drafts_file:19` `load_drafts:23` `save_drafts:38` `cmd_draft:44` |
 | `bili_radar/notify.py` | 198 | 通知 / 私信读写 | `cmd_msg:18` `cmd_dm:73` `cmd_notify:135` `radar_unread:198` |
 | `bili_radar/dynamic.py` | 77 | 动态发/删 | `cmd_dynamic:15` `cmd_dynamic_del:59` |
+| `bili_radar/like.py` | 61 | 点赞 / 取消赞（2026-11-13） | `cmd_like:23` |
 | `bili_radar/feedback.py` | 138 | 反馈/统计/活跃度 | `cmd_feedback:12` `cmd_stats:43` `cmd_engagement:65` |
 | `bili_radar/media/frames.py` | 365 | 抽帧流程 | `http_get_json:50` `wbi_keys:73` `wbi_sign:83` `video_info:89` `playurl:100` `subtitles:120` `fmt_ts:141` `extract_frame:146` `extract_frame_local:159` `download_video:171` `pick_points:203` `build_grid:216` `main:259` |
 | `bili_radar/media/mp4_sparse.py` | 202 | moov 解析 + 稀疏下载 | `_fetch_range:20` `_parse_boxes:28` `_find_box:51` `_table:61` `_SparsePlan:78` `sparse_plan:145` `build_sparse:184` |
@@ -90,7 +91,9 @@ graph TD
 | `check` | 44 | `cmd_check` | `browse.py:15` |
 | `search` | 46 | `cmd_search` | `browse.py:31` |
 | `sub` | 54 | `cmd_sub` | `browse.py:94` |
-| `seen` (check/add) | 59 | `cmd_seen` | `browse.py:121` |
+| `seen` (check/add) | 66 | `cmd_seen` | `browse.py:162` |
+| `feed`（首页推荐流，只读） | 78 | `cmd_feed` | `browse.py:70` |
+| `like`（点赞/取消赞） | 83 | `cmd_like` | `like.py:23` |
 | `reply`（@主号/楼中楼） | 64 | `cmd_reply` | `comment.py:37` |
 | `check-reply`（匿名可见性） | 71 | `cmd_check_reply` → `visible_anon` | `comment.py:345` |
 | `rate`（看/改频控） | 76 | `cmd_rate` | `comment.py:140` |
@@ -228,6 +231,7 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | `test_draft.py` | 草稿状态机 | 入稿校验 / 同人 30 天 / 水军昵称拒 / 24h 过期 / 审批 / 失败计数 |
 | `test_engagement.py` | 活跃度三分支 + 窗口 | 5 例 |
 | `test_frames_plan.py` | `_SparsePlan` sample→offset 映射（stts/stsc 坑） | 5 例 |
+| `test_like.py` | 点赞闸（开关关 / 干跑不落账 / 赞过再赞 / `--cancel` 绕同一视频闸） | 4 例 |
 | `test_schedule.py` | rrule 生成（DAILY+BY 部件 / MINUTELY 间隔无 BY） | 7 例 |
 | `test_write_cooldown.py` | 写冷却（两账本取最新） | 5 例 |
 

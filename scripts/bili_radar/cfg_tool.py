@@ -41,6 +41,9 @@ SENSITIVE = {
     "write.message.forbid", "write.message.allow_mid",
     "write.comment.enabled", "write.comment.per_hour", "write.comment.per_day",
     "write.comment.forbid", "write.comment.same_video_once",
+    # 点赞闸（2026-11-13 新增）
+    "write.like.enabled", "write.like.per_hour", "write.like.per_day",
+    "write.like.same_video_once",
     # 草稿审批流
     "draft.enabled", "draft.per_12h", "draft.per_24h", "draft.forbid",
     "draft.reply_interval_days",
