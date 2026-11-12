@@ -1,6 +1,6 @@
 跑一轮兴趣雷达（interest-radar）。
 
-严格按 `code/interest-radar/SKILL.md` 的「一轮流程」走：
+严格按 `work/interest-radar/SKILL.md` 的「一轮流程」走：
 
 1. 先读反馈：`python scripts/radar.py notify --new-only`。主号在我评论下的每条回复都用
    `radar.py feedback` 记一条（like/skip/note），一条都不许丢；别人 @ 我不理不回。

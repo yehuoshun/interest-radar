@@ -67,7 +67,7 @@ GitHub Actions 在 push 与 PR 上跑同一套：`.github/workflows/ci.yml`（�
 # 1. 初始化状态目录（拷模板 + 写默认 config.json，写操作开关全关）
 python scripts/init.py
 
-# 2. 放 cookie：<工作区>/config/bilibili_cookies.txt
+# 2. 放 cookie：<工作区>/config/bilibili_cookies.txt（本机也叫 bilibili.txt）
 #    一行 k=v; k=v，至少有 SESSDATA / bili_jct / DedeUserID
 #    失效（-101）时不用手动导出：python scripts/bili_qr_login.py 扫码换新
 python scripts/radar.py check          # 校验：打印昵称 = 有效

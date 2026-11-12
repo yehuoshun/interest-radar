@@ -35,7 +35,12 @@ API = "https://api.bilibili.com"
 # scripts/bili_radar/core.py → parents[0]=bili_radar, [1]=scripts, [2]=仓库根
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-COOKIE_NAME = "bilibili_cookies.txt"
+# 工作区布局：<workspace>/{code,work}/<项目> —— 这两个目录都是「分组目录」
+GROUP_DIRS = ("code", "work")
+
+# 工作区 config/ 下认这几种 cookie 命名（AGENTS.md 约定 <用途>_<种类>.txt；历史文件也叫 bilibili.txt）
+COOKIE_NAMES = ("bilibili_cookies.txt", "bilibili.txt", "bilibili_cookie.txt", "bilibili_credential.txt")
+COOKIE_NAME = COOKIE_NAMES[0]
 LEGACY_COOKIE = Path.home() / ".openclaw" / "secrets" / "bilibili-cookies.txt"
 
 
@@ -49,9 +54,9 @@ def repo_root() -> Path:
 
 
 def workspace_root() -> Path:
-    """工作区根：<workspace>/code/<项目> 布局下就是往上两级，否则退回仓库根。"""
+    """工作区根：<workspace>/{code,work}/<项目> 布局下就是往上两级，否则退回仓库根。"""
     parent = REPO_ROOT.parent
-    if parent.name.lower() == "code":
+    if parent.name.lower() in GROUP_DIRS:
         return parent.parent
     return REPO_ROOT
 
@@ -70,12 +75,13 @@ def ensure_state_dir() -> Path:
 
 
 def cookie_candidates() -> list:
-    """候选 cookie 路径，按优先级排列（第一个存在的被采用）。"""
-    return [
-        workspace_root() / "config" / COOKIE_NAME,
-        REPO_ROOT / "config" / COOKIE_NAME,
-        LEGACY_COOKIE,
-    ]
+    """候选 cookie 路径，按优先级排列（第一个存在的被采用）：工作区 config → 仓库 config → 旧 OpenClaw。"""
+    out = []
+    for root in (workspace_root(), REPO_ROOT):
+        for name in COOKIE_NAMES:
+            out.append(root / "config" / name)
+    out.append(LEGACY_COOKIE)
+    return out
 
 
 def cookie_path() -> Path:

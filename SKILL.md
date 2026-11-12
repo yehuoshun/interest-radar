@@ -32,13 +32,13 @@ description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真�
 ## 开跑前（本机一次性）
 
 ```bash
-cd code/interest-radar
+cd work/interest-radar
 python scripts/init.py            # 建 state/（拷模板 + 写默认 config.json），并打印 cookie 路径
 python scripts/radar.py check     # 打印昵称 = cookie 有效
 ```
 
 - 状态目录 `state/`（`INTERESTS_DIR` 可覆盖）：报告 `state/out/`、抽帧 `state/frames/`
-- cookie：`<工作区>/config/bilibili_cookies.txt`（本机 = `E:\DevSoftWare\DeepSeekWorkSpace\config\bilibili_cookies.txt`）。
+- cookie：`<工作区>/config/bilibili_cookies.txt`（也认历史名 `bilibili.txt`；本机实际是 `E:\DevSoftWare\DeepSeekWorkSpace\config\bilibili.txt`）。
   没有就取小号 cookie 存成一行 `SESSDATA=…; bili_jct=…; DedeUserID=…`；或 `python scripts/bili_qr_login.py` 扫码换新
   （二维码出图需 `python -m pip install "qrcode[pil]"`；没装该包会打印登录 URL 并 exit 4）
 - 本机 Windows + PowerShell：命令是 **`python`，不是 `python3`**；`ffmpeg` 不在 PATH ⇒ `scripts/frames.py` 抽帧用不了（其余功能不受影响）
@@ -73,7 +73,7 @@ python $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_
 python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
 ```
 
-- cookie 文件：`<工作区>/config/bilibili_cookies.txt`（小号；**失效先跑 `scripts/bili_qr_login.py` 扫码自救**，见下节，不用手动导出）
+- cookie 文件：`<工作区>/config/bilibili_cookies.txt`（工作区布局 `<workspace>/{code,work}/<项目>`；小号；**失效先跑 `scripts/bili_qr_login.py` 扫码自救**，见下节，不用手动导出）
 - 脚本只做确定性的事；**判断一律由模型做**
 
 ## 一轮流程（严格按序）
@@ -245,7 +245,7 @@ cd <skill>/scripts && python -m unittest discover tests -v
 
 114 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
-state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，不猜 skills/ 标记）。
+state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
 
 ## 报告格式（`state/out/<日期>.md`）

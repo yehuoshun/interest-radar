@@ -1,7 +1,8 @@
 """core：路径口径回归。
 
 原来靠「向上找 skills/interest-radar 标记」定位 `~/.openclaw/workspace/interests`，
-2026-11-13 改成跨平台：状态目录默认 `<仓库根>/state`，cookie 默认 `<工作区>/config/bilibili_cookies.txt`。
+2026-11-13 改成跨平台：状态目录默认 `<仓库根>/state`，cookie 默认 `<工作区>/config/bilibili_cookies.txt`
+（工作区布局 `<workspace>/{code,work}/<项目>`，config/ 下也认历史命名 `bilibili.txt`）。
 这两条口径错了，整个雷达的读写都会散到不该去的目录，所以钉死在这里。
 """
 import os
@@ -96,6 +97,18 @@ class TestCookiePath(unittest.TestCase):
         self._touch(legacy)
         self.assertEqual(cookie_path(), legacy)
 
+    def test_alt_name_bilibili_txt(self):
+        """历史命名 bilibili.txt 也认（本机 config/ 就是这个名）。"""
+        ws_cookie = self.root / "workspace" / "config" / "bilibili.txt"
+        self._touch(ws_cookie)
+        self.assertEqual(cookie_path(), ws_cookie)
+
+    def test_prefers_canonical_name_over_alt(self):
+        ws = self.root / "workspace" / "config"
+        self._touch(ws / "bilibili.txt")
+        self._touch(ws / "bilibili_cookies.txt")
+        self.assertEqual(cookie_path(), ws / "bilibili_cookies.txt")
+
     def test_missing_defaults_to_workspace_config(self):
         self.assertEqual(cookie_path(),
                          self.root / "workspace" / "config" / "bilibili_cookies.txt")
@@ -111,6 +124,18 @@ class TestWorkspaceRoot(unittest.TestCase):
     def test_code_layout(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp, "ws", "code", "proj")
+            repo.mkdir(parents=True)
+            old = core.REPO_ROOT
+            core.REPO_ROOT = repo
+            try:
+                self.assertEqual(core.workspace_root(), Path(tmp, "ws"))
+            finally:
+                core.REPO_ROOT = old
+
+    def test_work_layout(self):
+        """工作任务放 work/ 下，同样算分组目录。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp, "ws", "work", "proj")
             repo.mkdir(parents=True)
             old = core.REPO_ROOT
             core.REPO_ROOT = repo

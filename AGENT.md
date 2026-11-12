@@ -186,7 +186,7 @@ graph TD
 | `frames/frames_<BV>.png` `+.json` | `media/frames.main` | 抽帧产物 |
 
 仓库外：
-- cookie：`<工作区>/config/bilibili_cookies.txt`（路径可由 `BILI_COOKIE_FILE` 覆盖，`core.py:24`）
+- cookie：`<工作区>/config/bilibili_cookies.txt`（也认历史名 `bilibili.txt`；路径可由 `BILI_COOKIE_FILE` 覆盖，`core.py:81`）
 - 二维码：`state/tmp/qr-<ts>.png`（`bili_qr_login.py`）
 
 ---
