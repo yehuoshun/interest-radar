@@ -84,7 +84,7 @@ python scripts/radar.py search --kw "关键词" --days 7
 python scripts/schedule.py --every-minutes 10  # 固定间隔：每 10 分钟一轮（本机当前用这个）
 python scripts/schedule.py valley              # 打印谷时模式的 DTSTART+RRULE 与 prompt
 python scripts/schedule.py all --rrule-only    # 全天每小时，只要 rrule
-python scripts/schedule.py all --minute 0      # 整点触发（排班见 plan.py：夜里每小时、白天每 2 小时 + jitter 0–10 分钟）
+python scripts/schedule.py all --minute 0      # 整点触发（排班见 plan.py：全天每小时 + jitter 0–10 分钟，护栏 ≥50 分钟）
 python scripts/plan.py gate                    # 这一巡该不该刷（间隔护栏）
 python scripts/plan.py rrule                   # 当前排班 rrule
 python scripts/schedule.py valley --minute 43  # 换分钟偏移（默认 17）
