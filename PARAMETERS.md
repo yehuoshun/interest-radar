@@ -61,13 +61,13 @@
 | 参数 | 运行值 | 权限 | 生效方式 | 状态 |
 |---|---|---|---|---|
 | `budget.max_subtitles_per_round` | — | 维护者 | —— | 🗑️ **B2 已删（2026-11-02）**：10-27 老板拍板「每轮字幕不限」后一直是死键，直接清除；历史注释保留在 config `_subtitle_note` |
-| `budget.max_push_per_round` | 1 | 维护者 | —— | ⚠️ 漂移：config 是 1（10-27 老板拍板「每轮最多推 1 条」），但 **SKILL.md 第 9 步仍写「只推 0-3 条」且没写 1** → 模型看到的真值是 0-3，可能推超 1 条 |
+| `budget.max_push_per_round` | 1 | 维护者 | —— | 🗑️ **已作废（2026-11-14 值班口径）**：不再「推送候选」，每巡在对话里按固定骨架汇报；config 里这个键没人读 |
 | `budget.min_total_score` | 0 | 维护者 | —— | ✅ **B2 已接线（2026-11-02）**：`comment --score < 它` 会被代码拒发（硬闸）；**11-13 老板「不要设定阈值」→ 14→0（`chg-20261113-131457-7c6c78`）**，闸还在但等于不卡分 |
-| 四维打分（相关/新奇/实操/新鲜 各 0-5） | —— | 模型规则 | 📐 | SKILL.md 76 + charter.md 18 |
-| 新奇度 ≤1 直接砍 | —— | 模型规则 | 📐 | SKILL.md 76 |
-| 粗筛 ≥8 条候选 | —— | 模型规则 | 📐 | SKILL.md 流程第 4 步（省 token 用，非硬闸） |
-| 搜索默认 `--days 7 --order pubdate` | —— | CLI 默认 | 🔒 只读 | browse.py 参数默认 |
-| 推送 0-3 条 / 0 条合法 | —— | 模型规则 | 📐 | SKILL.md 第 9 步（⚠️ 与 config=1 冲突，见上） |
+| 一巡只读一条（feed 12 条挑 1） | —— | 模型规则 | 📐 | SKILL.md「一轮流程」第 5 步；11-13 19:54 老板「不是有规定一次看一条视频吗」 |
+| 已赞跳过（`liked --bv`） | —— | 平台状态 | ✅ 接线 | browse.py `cmd_liked`（2026-11-14）；只查候选 1–2 条，不逐条查整屏 |
+| 不扫 `seen.md` 判已读 | —— | 模型规则 | 📐 | SKILL.md 一轮流程第 4 步；`seen.md` 只做 @ 去重（`reply` 自写） |
+| 搜索默认 `--days 7 --order pubdate` | —— | CLI 默认 | 🔒 只读 | browse.py 参数默认（手动 `search` 用，值班流程不用） |
+| 推送 0-3 条 / 四维打分 / 候选 ≤8 | —— | 已作废 | —— | 2026-11-13 起一巡一条、不设分数阈值、不设条数配额（老板「不要设定阈值」） |
 
 ## C 组 · 写操作闸（动态/私信/评论）— config `write`
 
@@ -75,7 +75,7 @@
 
 | 参数 | 运行值 | 读取点 |
 |---|---|---|
-| `write.cooldown_sec` | 120 | comment.py:99/269、dynamic.py:41、notify.py:51 |
+| `write.cooldown_sec` | 60 | comment.py:99/269、dynamic.py:41、notify.py:51 |
 | `write.dynamic.enabled / per_hour / per_day / forbid` | true / 0 / 3 / 词表 | dynamic.py:27、gates.py:79 |
 | `write.message.enabled / per_hour / per_day / allow_mid / forbid` | true / 0 / 5 / [主号] / 词表 | gates.py:79、notify.py（白名单硬闸） |
 | `write.comment.enabled / per_hour / per_day / same_video_once / forbid` | true / 0 / 0 / true / 词表 | gates.py:146、comment.py（per_hour 11-13 由 3 收到 1、17:43 再归零 = 不限：老板「其实限制可以去掉」） |
@@ -150,7 +150,7 @@
    - `python scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂到定时任务做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
    - `python scripts/radar.py rate` — 看 @ 频控用量与参数
    - `radar.py mention --bv <BV> --dry-run`（默认干跑）— 验闸与文案
-   - `cd scripts && python -m unittest discover tests -v` — 150 用例回归（零网络）
+   - `cd scripts && python -m unittest discover tests -v` — 160 用例回归（零网络）
 5. **审计口径**：本文件每次改参数后顺手核一遍「接线/漂移」列，保持地图与代码同步。
 
 ---
