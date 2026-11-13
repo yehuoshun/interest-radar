@@ -88,10 +88,10 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 刷着玩模式（2026-11-13 老板改口径）
 
-**作息**：24 小时值班，但**醒点是自己定的**（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」）：每次收尾后 `python scripts/plan.py next`，拿「上一次收尾 + 50–120 分钟随机间隔（三角分布、众数 60）」写一个**一次性**闹钟 `RRULE:FREQ=DAILY;COUNT=1` 回活任务 —— 醒点不贴整点，今天 17:12 醒、明天 23:48 醒都可能；护栏 ≥50 分钟只防连刷；白天轻、夜里重；一串连看到自然想走（不数条数、不设时长上限，视频长短自己决定），收尾 `radar.py jitter --close` 打一笔卡，多数时候只是看，0 互动是正常结果；@ 老板：白天 ≤1 条/巡（白天合计 ≤3，11-13 老板「白天可以@」后不再压着）、夜里 ≤2 条/巡（整夜 ≤4，11-13「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
+**作息**：24 小时值班，**节奏只有一条**（11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」；「掷一个 50–120 分钟的随机间隔？你是不是又理解错了？」→ 50–120 是我拍错的，已经删了）：上一次观看结束 + 1–10 分钟 = 下一次观看开始。每次收尾后 `python scripts/plan.py next` 按这条算醒点，写一个**一次性**闹钟 `RRULE:FREQ=DAILY;COUNT=1` 回活任务 —— 醒点不贴整点；`gate` 只防同一分钟重复触发；白天轻、夜里重；一串连看到自然想走（不数条数、不设时长上限，视频长短自己决定），收尾 `radar.py jitter --close` 打一笔卡，多数时候只是看，0 互动是正常结果；@ 老板：白天 ≤1 条/巡（白天合计 ≤3，11-13 老板「白天可以@」后不再压着）、夜里 ≤2 条/巡（整夜 ≤4，11-13「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
 一巡写操作上限：赞 ≤2、评论 ≤1、@ ≤2；整夜 @ ≤4（11-13 老板「一晚上只艾特我一次啊」后从 1/夜放开，见 `chg-20261113-120250-b0414b`）。
 
-**抖动**：醒来不等于马上开门，先 `radar.py jitter --max-min 10 --sleep` 随机拖 0–10 分钟（三角分布，多数很快、偶尔接近 10 分钟），实际等待记在 `state/jitter-log.jsonl`。「醒了先发会儿呆再干活」。**串内歇息**：看完一条视频再点下一条之前，`radar.py jitter --min-min 1 --max-min 10 --rest --sleep` 歇 1–10 分钟（均匀分布，11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」）；记 `kind=rest`，`plan.py gate` 不认它。**收尾打卡**：`radar.py jitter --close` 记 `kind=close`，`gate` 认它 —— 巡更间隔从「我关掉 B 站」那刻算，不是从开门算（看了半小时才关掉，那半小时也算刷过了）。开门前先过 `python scripts/plan.py gate`（护栏：≥50 分钟，全天同一档），`allowed:false` 就这一巡静默。
+**歇息**：看完一条视频再点下一条之前，`radar.py jitter --min-min 1 --max-min 10 --rest --sleep` 歇 1–10 分钟（均匀分布，11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」）；记 `kind=rest`。**收尾打卡**：`radar.py jitter --close` 记 `kind=close`；`plan.py` 认 open / rest / close 全部三种记录当「上一次还在 B 站」，因为节奏是连续的一条线，不分串内串外。开门前只过 `python scripts/plan.py gate`（只挡「同一分钟重复触发」），`allowed:false` 就跳过这一巡。
 
 （备选：`schedule.py --random-minute` 能每巡重掷一个随机分钟、把触发本身挪开整点，代码和单测都留着，但当前口径不用。）
 
@@ -149,7 +149,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 触发时刻随机化（2026-10-27）
 
-雷达**自己上闹钟**：`python scripts/plan.py next` 输出 `wake_at` + 一次性 rrule（`FREQ=DAILY;COUNT=1`），收尾后写回活任务（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」）。`plan.py rrule` / `scripts/schedule.py all` 那种「每小时/每天几点」的排班写法都留作备用，当前口径不用。真正开门还过 `plan.py gate` 的间隔护栏 + jitter 0–10 分钟（11-13 老板「不要设定阈值。你规划好刷视频的间隔就行了」）。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
+雷达**自己上闹钟**：`python scripts/plan.py next` 输出 `wake_at` + 一次性 rrule（`FREQ=DAILY;COUNT=1`），收尾后写回活任务（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」；醒点 = 上一条记录 + 1–10 分钟）。「每小时/每天几点」那种排班只剩 `scripts/schedule.py all` 当备用，当前口径不用。`plan.py gate` 只防同一分钟重复触发（11-13 老板「不要设定阈值」）。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
 
 ## cookie 失效自救（扫码登录，2026-10-27 起）
 
@@ -316,7 +316,7 @@ python scripts/schedule.py night --minute 0     # 夜班保安：22:00–05:00 �
 python scripts/schedule.py --every-minutes 10   # 固定间隔：每 10 分钟一轮
 python scripts/schedule.py --rrule-only  # 只要 rrule
 python scripts/schedule.py valley --minute 43   # 换个分钟偏移（默认 17，避开整点）
-python scripts/schedule.py all --minute 0       # 整点触发（当前口径：整点 + 0–10 分钟抖动）
+python scripts/schedule.py all --minute 0       # 整点排班（备用写法；当前醒点由 plan.py next 自己定，不贴整点）
 python scripts/schedule.py all --random-minute  # 备选：随机分钟，每巡重掷，下次触发至少 +25 分钟
 ```
 

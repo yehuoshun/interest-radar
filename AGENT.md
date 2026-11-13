@@ -63,7 +63,7 @@ graph TD
 | `frames.py` | 17 | 抽帧薄壳 → `bili_radar.media.frames.main` | — |
 | `init.py` | 114 | 初始化 state/：建 out/frames、拷模板、写默认 config.json（写操作全关）、打印 cookie 路径 | `DEFAULT_CONFIG:27` `_copy_template:67` `main:79` |
 | `bili_qr_login.py` | 180 | 扫码登录自救（纯标准库 urllib；`qrcode` 仅出图用，可选依赖） | `http_json:47` `follow:53` `cookies_dict:64` `main:68` `write_cookie:152` |
-| `plan.py` | 158 | 值班节奏：醒点自己定（锚点 + 50–120 分钟随机间隔 → 一次性闹钟）、护栏 50 分钟、这一巡该不该刷（2026-11-13） | `TZ:20` `HOURS:22` `GAP_MIN:23` `GAP_MAX_MIN:24` `GAP_MODE_MIN:25` `hours:29` `next_hour:34` `last_scan:42` `gate:68` `pick_gap_min:91` `next_wake:102` `wake_rrule:112` `rrule:118` `describe:125` `main:131` |
+| `plan.py` | 133 | 下一次什么时候醒：`last_seen` + 1–10 分钟 → 一次性闹钟；`gate` 只防同一分钟重复触发（2026-11-13） | `TZ:21` `REST_MIN:23` `REST_MAX:24` `last_seen:28` `last_scan:50` `rest_min:55` `next_wake:61` `wake_rrule:71` `gate:77` `describe:100` `main:105` |
 | `schedule.py` | 206 | 打印调度的 rrule + prompt（all / valley / night / `--every-minutes` / `--random-minute`）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:47` `HOURS:48` `DESC:54` `MINUTE_LO:62` `RANDOM_LEAD_MINUTES:64` `pick_minute:67` `next_start:78` `build_rrule:92` `INTERVAL_MODE_RE:101` `build_interval_rrule:110` `describe:122` `plan:129` `prompt_text:137` `save_state:144` `main:162` |
 | `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
@@ -146,7 +146,7 @@ graph TD
 | **抽帧九宫格 / 硬字幕长图** | `media/frames.py` | `pick_points:203` `build_grid:216` `main:259` |
 | **稀疏下载**（moov 解析、GOP 区间、零填充） | `media/mp4_sparse.py` | `_SparsePlan:78` `sparse_plan:145` `build_sparse:184` |
 | **调度模式（all/valley/每 N 分钟）** | `schedule.py` | `build_rrule()` `build_interval_rrule()` `plan()` `save_state()` |
-| **值班节奏（醒点 + 该不该刷）** | `plan.py` | `gate()` `next_wake()` `pick_gap_min()` `wake_rrule()`（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」→ 收尾后自己掷间隔、写一次性闹钟）|
+| **下一次醒点（节奏）** | `plan.py` | `next_wake()` `rest_min()` `last_seen()` `wake_rrule()`（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」+「节奏只有『看完一条歇 1–10 分钟』这一条」→ 醒点 = 上一条记录 + 1–10 分钟，写一次性闹钟）|
 | **cookie 失效自救（扫码）** | `bili_qr_login.py` | 脚本体（`QR_PATH` 输出二维码 → 轮询 → 跟随 crossDomain → 覆写 cookie） |
 
 ---
@@ -237,7 +237,7 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | `test_frames_plan.py` | `_SparsePlan` sample→offset 映射（stts/stsc 坑） | 5 例 |
 | `test_jitter.py` | 抖动范围 / 干跑不睡 / 越界拒绝 / 记账 / 歇息下限与 kind / min>max 拒绝 / 收尾打卡不等待 / rest 与 close 互斥 | 8 例 |
 | `test_like.py` | 点赞闸（开关关 / 干跑不落账 / 赞过再赞 / `--cancel` 绕同一视频闸） | 4 例 |
-| `test_plan.py` | 护栏单值 50 分钟 / `next_hour` 跨日 / `gate` 放行与静默 / 歇息不喂护栏 / 收尾打卡喂护栏 / `pick_gap_min` 区间与三角分布 / `next_wake` 从收尾锚点推、不排过去的闹钟 / `wake_rrule` 一次性 | 14 例 |
+| `test_plan.py` | 歇息区间 1–10 分钟 / 用 `randint` 掷 / `last_seen` 认 open・rest・close 三种记录 / `next_wake` = 上一条 + 1–10 / 不排过去的闹钟 / `wake_rrule` 一次性 / `gate` 只挡同一分钟 | 7 例 |
 | `test_schedule.py` | rrule 生成（DAILY+BY 部件 / MINUTELY 间隔无 BY / 随机分钟范围 / 拨钟提前量） | 10 例 |
 | `test_write_cooldown.py` | 写冷却（两账本取最新） | 5 例 |
 
