@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
-"""plan.py —— 值班节奏（2026-11-13）。
+"""plan.py —— 值班节奏（2026-11-13：全天每小时一巡）。
 
-老板口径：「不要设定阈值。你规划好刷视频的间隔就行了」。
-所以这里不做内容打分，只做一件事：**排好一天刷几次、每次隔多久**，以及判断
-「现在这一巡该不该真刷」——距离上一巡太近就静默跳过，不为了打卡硬刷。
+口径演变（都是老板的话）：
+- 12:10「白天也继续吧，改成24小时」
+- 13:14「不要设定阈值。你规划好刷视频的间隔就行了」→ 我先把白天放宽成每 2 小时
+- 14:02 老板选「2」（回到全天每小时）→ 24 巡/天，白天也每小时
 
-节奏（可从常量改）：
-- 夜里 22:00–05:00：每小时一次（夜里最清醒，也最容易漏东西）
-- 白天 08:00–21:00：每 2 小时一次
-- 06:00–07:00：睡，不排班
-两级最小间隔是「防连刷」的护栏：白天 100 分钟、夜里 50 分钟。触发时刻由 rrule 给，
-护栏负责在重叠/手贱时把手按住。
+所以这里不做内容打分，只做两件事：排一天的整点、判断「现在这一巡该不该真刷」。
+护栏 50 分钟：整点触发 + 0–10 分钟抖动，相邻两巡实际隔 50–70 分钟；
+护栏只在「重叠触发 / 手贱连刷」时把手按住，不参与内容判断。
 """
 import argparse
 import json
@@ -21,35 +19,22 @@ from bili_radar.core import REPO_ROOT, state_dir
 
 TZ = timezone(timedelta(hours=8))
 
-DAY_HOURS = [8, 10, 12, 14, 16, 18, 20]
-NIGHT_HOURS = [22, 23, 0, 1, 2, 3, 4, 5]
-DAY_GAP_MIN = 100
-NIGHT_GAP_MIN = 50
+HOURS = list(range(24))
+GAP_MIN = 50
 LOG_NAME = "jitter-log.jsonl"
-
-
-def is_night(hour: int) -> bool:
-    return hour >= 22 or hour <= 5
-
-
-def required_gap(hour: int) -> int:
-    return NIGHT_GAP_MIN if is_night(hour) else DAY_GAP_MIN
 
 
 def hours() -> list:
     """排班的整点（升序），喂给 rrule 的 BYHOUR。"""
-    return sorted(DAY_HOURS + NIGHT_HOURS)
+    return list(HOURS)
 
 
 def next_hour(now=None) -> datetime:
     """下一次排班整点（不含秒级抖动）。"""
     now = now or datetime.now(TZ)
     now = now.replace(second=0, microsecond=0)
-    for step in range(0, 26):
-        cand = (now + timedelta(hours=step)).replace(minute=0)
-        if cand > now and cand.hour in hours():
-            return cand
-    return now.replace(hour=hours()[0], minute=0) + timedelta(days=1)
+    cand = (now + timedelta(hours=1)).replace(minute=0)
+    return cand
 
 
 def last_scan() -> datetime:
@@ -80,7 +65,7 @@ def gate(now=None) -> dict:
     """这一巡该不该刷：距上一巡不足最小间隔就静默。"""
     now = now or datetime.now(TZ)
     last = last_scan()
-    gap = required_gap(now.hour)
+    gap = GAP_MIN
     if last is None:
         return {"allowed": True, "reason": "没有上一巡记录，照排班开刷",
                 "since_last_min": None, "min_gap_min": gap,
@@ -107,9 +92,9 @@ def rrule(now=None) -> str:
 
 
 def describe() -> str:
-    return ("夜里 22–05 每小时一次、白天 08–21 每 2 小时一次、06–07 睡；"
-            "护栏：夜里 ≥%d 分钟、白天 ≥%d 分钟才刷下一巡（不做内容打分）"
-            % (NIGHT_GAP_MIN, DAY_GAP_MIN))
+    return ("全天每小时一巡（%d 巡/天，12:10「改成24小时」+ 14:02 选「2」）；"
+            "护栏：距上一巡 ≥%d 分钟才刷下一巡（不做内容打分）"
+            % (len(hours()), GAP_MIN))
 
 
 def main():
