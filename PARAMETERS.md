@@ -98,6 +98,7 @@
 | 触发时刻 | 整点 `BYMINUTE=0` | `schedule.py --minute 0`（11-13 老板口径：整点只是闹钟） | ✅ 接线（外部） |
 | 整点后抖动 | 0–10 分钟 | `radar.py jitter --max-min 10`（三角分布，峰值 0） | ✅ 接线（外部） |
 | 串内歇息 | 1–10 分钟 | `radar.py jitter --min-min 1 --max-min 10 --rest`（均匀分布；11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」） | ✅ 接线（外部） |
+| 一串收尾打卡 | 即时 | `radar.py jitter --close`（`kind=close`；`plan.py gate` 的巡更间隔从这一刻算） | ✅ 接线（外部） |
 | 随机分钟（备选） | 2–58，每巡重掷 | `schedule.py --random-minute`（`pick_minute()`；当前口径不用，代码保留） | ⚪ 未启用 |
 | 跑一轮的间隔（分钟） | 10 | `schedule.py --every-minutes`（`FREQ=MINUTELY;INTERVAL=N`，无 BY 部件） | ✅ 接线（外部） |
 | 谷时口径（valley） | 工作日 9-12/14-18 高峰 | 📐 注释口径 | 📐 |

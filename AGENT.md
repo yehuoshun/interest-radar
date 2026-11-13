@@ -63,6 +63,7 @@ graph TD
 | `frames.py` | 17 | 抽帧薄壳 → `bili_radar.media.frames.main` | — |
 | `init.py` | 114 | 初始化 state/：建 out/frames、拷模板、写默认 config.json（写操作全关）、打印 cookie 路径 | `DEFAULT_CONFIG:27` `_copy_template:67` `main:79` |
 | `bili_qr_login.py` | 180 | 扫码登录自救（纯标准库 urllib；`qrcode` 仅出图用，可选依赖） | `http_json:47` `follow:53` `cookies_dict:64` `main:68` `write_cookie:152` |
+| `plan.py` | 119 | 值班节奏：全天 24 整点、护栏 50 分钟、这一巡该不该刷（2026-11-13） | `TZ:20` `HOURS:22` `GAP_MIN:23` `hours:27` `next_hour:32` `last_scan:40` `gate:66` `rrule:89` `describe:96` `main:102` |
 | `schedule.py` | 206 | 打印调度的 rrule + prompt（all / valley / night / `--every-minutes` / `--random-minute`）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:47` `HOURS:48` `DESC:54` `MINUTE_LO:62` `RANDOM_LEAD_MINUTES:64` `pick_minute:67` `next_start:78` `build_rrule:92` `INTERVAL_MODE_RE:101` `build_interval_rrule:110` `describe:122` `plan:129` `prompt_text:137` `save_state:144` `main:162` |
 | `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
@@ -74,7 +75,7 @@ graph TD
 | `bili_radar/notify.py` | 198 | 通知 / 私信读写 | `cmd_msg:18` `cmd_dm:73` `cmd_notify:135` `radar_unread:198` |
 | `bili_radar/dynamic.py` | 77 | 动态发/删 | `cmd_dynamic:15` `cmd_dynamic_del:59` |
 | `bili_radar/like.py` | 61 | 点赞 / 取消赞（2026-11-13） | `cmd_like:23` |
-| `bili_radar/jitter.py` | 63 | 巡更抖动 + 串内歇息（2026-11-13）：min=0 用三角分布（峰值 0），min>0 用均匀分布；记账 `state/jitter-log.jsonl` 带 `kind`（open/rest） | `MAX_MIN:21` `KIND_OPEN:23` `KIND_REST:24` `pick_delay:33` `log_delay:40` `cmd_jitter:51` |
+| `bili_radar/jitter.py` | 76 | 巡更抖动 + 串内歇息 + 收尾打卡（2026-11-13）：min=0 用三角分布（峰值 0），min>0 用均匀分布；记账 `state/jitter-log.jsonl` 带 `kind`（open/rest/close） | `MAX_MIN:24` `KIND_OPEN:26` `KIND_REST:27` `KIND_CLOSE:28` `pick_delay:37` `log_delay:44` `cmd_jitter:55` |
 | `bili_radar/feedback.py` | 138 | 反馈/统计/活跃度 | `cmd_feedback:12` `cmd_stats:43` `cmd_engagement:65` |
 | `bili_radar/media/frames.py` | 365 | 抽帧流程 | `http_get_json:50` `wbi_keys:73` `wbi_sign:83` `video_info:89` `playurl:100` `subtitles:120` `fmt_ts:141` `extract_frame:146` `extract_frame_local:159` `download_video:171` `pick_points:203` `build_grid:216` `main:259` |
 | `bili_radar/media/mp4_sparse.py` | 202 | moov 解析 + 稀疏下载 | `_fetch_range:20` `_parse_boxes:28` `_find_box:51` `_table:61` `_SparsePlan:78` `sparse_plan:145` `build_sparse:184` |
@@ -95,7 +96,7 @@ graph TD
 | `seen` (check/add) | 66 | `cmd_seen` | `browse.py:162` |
 | `feed`（首页推荐流，只读） | 78 | `cmd_feed` | `browse.py:70` |
 | `like`（点赞/取消赞） | 84 | `cmd_like` | `like.py:23` |
-| `jitter`（巡更抖动 / 串内歇息） | 90 | `cmd_jitter` | `jitter.py:51`（`--min-min` `--rest`） |
+| `jitter`（巡更抖动 / 串内歇息 / 收尾打卡） | 90 | `cmd_jitter` | `jitter.py:55`（`--min-min` `--rest` `--close`） |
 | `reply`（@主号/楼中楼） | 64 | `cmd_reply` | `comment.py:37` |
 | `check-reply`（匿名可见性） | 71 | `cmd_check_reply` → `visible_anon` | `comment.py:345` |
 | `rate`（看/改频控） | 76 | `cmd_rate` | `comment.py:140` |
@@ -234,9 +235,9 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | `test_draft.py` | 草稿状态机 | 入稿校验 / 同人 30 天 / 水军昵称拒 / 24h 过期 / 审批 / 失败计数 |
 | `test_engagement.py` | 活跃度三分支 + 窗口 | 5 例 |
 | `test_frames_plan.py` | `_SparsePlan` sample→offset 映射（stts/stsc 坑） | 5 例 |
-| `test_jitter.py` | 抖动范围 / 干跑不睡 / 越界拒绝 / 记账 / 歇息下限与 kind / min>max 拒绝 | 6 例 |
+| `test_jitter.py` | 抖动范围 / 干跑不睡 / 越界拒绝 / 记账 / 歇息下限与 kind / min>max 拒绝 / 收尾打卡不等待 / rest 与 close 互斥 | 8 例 |
 | `test_like.py` | 点赞闸（开关关 / 干跑不落账 / 赞过再赞 / `--cancel` 绕同一视频闸） | 4 例 |
-| `test_plan.py` | 全天 24 整点 / 护栏单值 50 分钟 / `next_hour` 跨日 / `gate` 放行与静默 / 歇息不喂护栏 / rrule 的 BYHOUR | 8 例 |
+| `test_plan.py` | 全天 24 整点 / 护栏单值 50 分钟 / `next_hour` 跨日 / `gate` 放行与静默 / 歇息不喂护栏 / 收尾打卡喂护栏 / rrule 的 BYHOUR | 9 例 |
 | `test_schedule.py` | rrule 生成（DAILY+BY 部件 / MINUTELY 间隔无 BY / 随机分钟范围 / 拨钟提前量） | 10 例 |
 | `test_write_cooldown.py` | 写冷却（两账本取最新） | 5 例 |
 
