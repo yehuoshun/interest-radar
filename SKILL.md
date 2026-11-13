@@ -1,12 +1,12 @@
 ---
 name: interest-radar
-description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真正值得占用你一次注意力的东西，写成日报，并把够格的 0-3 条在对话里回报。当用户要求「跑一轮兴趣雷达 / 今天的雷达 / 每天帮我筛 B站 / 给我推值得看的东西 / 更新兴趣档案 / 记录反馈」时使用。判断口径与红线见 state/charter.md。
+description: 值班式兴趣雷达——24 小时刷 B站首页推荐流，一巡只读一条视频，觉得值就点赞/评论/@主号，按「视频时长 + 1–10 分钟」定下一次醒点。当用户要求「跑一轮兴趣雷达 / 今天的雷达 / 继续值班 / 每天帮我筛 B站 / 给我推值得看的东西 / 更新兴趣档案 / 记录反馈」时使用。判断口径与红线见 state/charter.md。
 ---
 
 # 兴趣雷达（interest-radar）
 
-每天一轮：**读兴趣档案 → 搜 → 读字幕原文 → 四维打分 → 判重 → 写日报 → 对话里回报 0-3 条**。
-不是搜索机器人：**"值不值得占用他一次注意力"是唯一的判据**，宁缺勿滥，**一天 0 条是合法输出**。
+不是搜索机器人：**「值不值得他花十分钟看」是唯一的判据**，宁缺勿滥；**一巡 0 互动是合法输出**。
+现在的跑法（2026-11-13 起）：**24 小时值班** —— 刷首页推荐流 → 挑一条读字幕 → 值得就点赞/评论/@ → 收尾 → `plan.py next` 定下一次醒点；不再按关键词搜，也不再「每天只跑一轮」。
 
 ## 硬规则
 
@@ -26,7 +26,7 @@ description: 每日兴趣雷达——替你扫一轮 B站，读字幕挑出真�
 | `charter.md` | 章程：判据、红线、流程（**以它为准**，本文件只是操作手册） |
 | `weights.json` | 反馈权重（脚本写） |
 | `evidence.jsonl` | 反馈证据（脚本写） |
-| `seen.md` | 判重表（脚本写） |
+| `seen.md` | @ 去重账本（`reply` 自写；巡更不读不写——判断「已读」看平台 `liked`） |
 | `out/<日期>.md` | 每日报告 |
 
 ## 开跑前（本机一次性）
@@ -53,8 +53,7 @@ python $R search --kw "关键词" --num 20 --days 7   # 搜（order: pubdate|cli
 python $R comment-check --bv BV1xxx          # 评论区快筛（@ 分享前跑：疑似 AI 水军提示，不拦截）
 python $R sub BV1xxxxxxxxx                         # 字幕全文；无字幕打印 NO_SUBTITLE
 python scripts/frames.py --bv BV1xxx [--strip]      # 抽帧看画面：默认 3x3 九宫格；--strip 硬字幕长图（需字幕轨）
-python $R seen check BV1xxx                        # SEEN / NEW
-python $R seen add <日期> BV1xxx <verdict> 标题     # verdict: keep|skip
+python $R liked --bv BV1xxx                        # 平台侧「我赞过没有」（已赞 → 跳过；巡更判读依据）
 python $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python $R stats                                    # 权重 + 已看条数（给"每周提议"用）
 python $R config set <段.键> <值> [--yes] [--reason "…"]  # 改配置：默认干跑+自动备份 → config restore 可回滚；变更入账本
@@ -64,9 +63,8 @@ python $R config observe <变更id> --note "…"         # 给某次变更补事
 python $R verify-params [--json]                    # 参数采用对账：config 保存值 vs 运行证据（只读；conflict>0 → exit 3）
 python $R engagement [--days N]                    # 活跃度评估：老板反馈/主动@/批准草稿/报告数 → 判读是否降频
 python $R reply --bv BV1xxx                        # **@ 主号 只走这个**（默认干跑；查 mention 频控 + 同一视频只发一次）
-python $R feed --num 12 --rounds 2                 # 刷首页推荐流（让算法决定看什么，不按关键词挖）
+python $R feed --num 12 --rounds 1                 # 刷首页推荐流（让算法决定看什么，不按关键词挖）
 python $R like --bv BV1xxx --yes                   # 点赞（--cancel 取消；同一视频只点一次）
-python $R jitter --max-min 10 --sleep              # 巡更前抖一下（0–10 分钟，别每次都准点）
 python $R jitter --watch 414 --sleep               # 看片计时：这条 6:54 → 花掉 414 秒（kind=watch）
 python $R jitter --min-min 1 --max-min 10 --rest --sleep   # 看完一条歇 1–10 分钟（kind=rest，不占巡更间隔）
 python $R jitter --close                                 # 收尾打卡（kind=close；下一巡间隔从这一刻算）
@@ -89,8 +87,8 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 刷着玩模式（2026-11-13 老板改口径）
 
-**作息**：24 小时值班，**节奏只有一条**（11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」；「掷一个 50–120 分钟的随机间隔？你是不是又理解错了？」→ 50–120 是我拍错的，已经删了）：视频时长 + 1–10 分钟 = 下一次观看开始（11-13 17:07 老板「是视频时长 + 一到十分钟。你这怎么变成了一到十分钟？」→ 看片先用 `radar.py jitter --watch <秒> --sleep` 把时长真的花掉，收尾打卡才落在「看完」之后）。每次收尾后 `python scripts/plan.py next` 按这条算醒点，写一个**一次性**闹钟 `RRULE:FREQ=DAILY;COUNT=1` 回活任务 —— 醒点不贴整点；`gate` 只防同一分钟重复触发；白天轻、夜里重；**一巡只读一条视频**（11-13 19:54 老板「不是有规定一次看一条视频吗」）——读完这一条就收尾 `radar.py jitter --close` 打一笔卡，下一条留给下一巡，多数时候只是看，0 互动是正常结果；@ 老板：白天 ≤1 条/巡（白天合计 ≤3，11-13 老板「白天可以@」后不再压着）、夜里 ≤2 条/巡（整夜 ≤4，11-13「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
-一巡写操作上限：赞 ≤2、评论 ≤1、@ ≤2；整夜 @ ≤4（11-13 老板「一晚上只艾特我一次啊」后从 1/夜放开，见 `chg-20261113-120250-b0414b`）。
+**作息**：24 小时值班，**节奏只有一条**（11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」；「掷一个 50–120 分钟的随机间隔？你是不是又理解错了？」→ 50–120 是我拍错的，已经删了）：视频时长 + 1–10 分钟 = 下一次观看开始（11-13 17:07 老板「是视频时长 + 一到十分钟。你这怎么变成了一到十分钟？」→ 看片先用 `radar.py jitter --watch <秒> --sleep` 把时长真的花掉，收尾打卡才落在「看完」之后）。每次收尾后 `python scripts/plan.py next` 按这条算醒点，写一个**一次性**闹钟 `RRULE:FREQ=DAILY;COUNT=1` 回活任务 —— 醒点不贴整点；`gate` 只防同一分钟重复触发；白天轻、夜里重；**一巡只读一条视频**（11-13 19:54 老板「不是有规定一次看一条视频吗」）——读完这一条就收尾 `radar.py jitter --close` 打一笔卡，下一条留给下一巡，多数时候只是看，0 互动是正常结果。
+**写操作不设条数配额**（11-13 17:43 老板「其实限制可以去掉」→ `like` / `comment` / `mention` 的 `per_hour`、`per_day` 全归零；`per_round` / `min_score` / `template` 是死配置）。真闸只剩：**写冷却 60 秒**、**同一视频只发一次**、连续 3 次失败自动关闸。**别为了产量去点去评。**
 
 **看片计时**：每看一条先 `radar.py jitter --watch <秒> --sleep`（6:54 → 414、16:20 → 980、21:48 → 1308），记 `kind=watch`；这是节奏里「视频时长」那一段，不记就等于没看片。
 
@@ -101,8 +99,8 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 老板原话：「像正常人一样刷 B 站；遇到喜欢的点赞，评论（有问题可以评论），遇到觉得我感兴趣的可以艾特我，一般我回复你
 就代表我感兴趣，你就可以按照建画像了。你自己刷没必要按照雷达，纯给你自己学习。」
 
-- 不再按关键词挖线索，改用首页推荐流：`radar.py feed --num 12 --rounds 2`。
-- 真读几条（`radar.py sub <BV>`），读完再决定：
+- 不再按关键词挖线索，改用首页推荐流：`radar.py feed --num 12 --rounds 1`。
+- **一巡只真读一条**（`radar.py sub <BV>`），读完再决定：
   - 好 → `radar.py like --bv BV1xxx --yes`（写闸 `write.like`，`per_hour` 11-13 17:43 起为 0 = 不限；同一视频只点一次；`--cancel` 取消赞）
   - 有话要说 → `radar.py comment --bv BV1xxx --text "…" --yes`（自发评论，≤200 字，**不走 mention 闸**）
   - 觉得老板会感兴趣 → `radar.py reply --bv BV1xxx --text "@夜灬瞬 …" --yes`（**只有这条走 mention 闸 / 频控 / 同一视频只发一次**）
@@ -113,28 +111,23 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 一轮流程（严格按序）
 
-0. **先读反馈**：`notify --new-only` → 主号在我评论下的**每一条回复**都用 `feedback` 记一条（like/skip/note），**一条都不许丢**；别人的回复不理也不记。
+0. `python scripts/plan.py gate`：只防「同一分钟重复触发」；`"allowed": false` 就跳过这一巡。
+1. **先读反馈**：`notify --new-only` → 主号在我评论下的**每一条回复**都用 `feedback` 记一条（like/skip/note），**一条都不许丢**；别人的回复不理也不记。
    - **主号 @ 我 → 必须回一条**（楼中楼：带 `--reply-to <at[].rpid>`；正文 ≤150 字）；**别人 @ 我 → 不理不回**。（`at[].text` 是正文、`at[].rpid` 是他那条评论）
-1. **`check`**：cookie 失效 → 直接停，**别硬跑**，报「cookie 失效，需要重新导出」。
-2. 读 `profile.md`：兴趣线 0 条 → 只按「明确不要的」过滤，**不自造兴趣**。
-3. **广撒网**：每条兴趣线搜 1-2 轮（主题 + 邻域各一次），`--days 7 --order pubdate`。
-4. **粗筛（先省 token）**：按标题/简介/时长/播放量砍掉明显不值的（入门教程、标题党、吵架场）→ **剩 ≤ 8 条候选**。
-   ⚠️ **字幕预算：每轮 ≤ 5 条**（2026-11-07 老板拍板加回上限，治单轮超时；此前 10-27 曾放开为不限）。粗筛后按分数从高到低读，**读满 5 条即停**；剩下的写进报告「待读队列」，下一轮优先。
-   ⏱ **单轮时间预算：已作废**（11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」→ 一巡一条，读完就收尾，不设时长上限；下面这条 12 分钟是 11-07 治超时的旧口径，只留作历史解释）。**旧：单轮 12 分钟**（2026-11-07 新增）。抽帧 ≤ 2 条；整轮跑到 12 分钟就停手，**先写报告再收尾总结**。调度侧超时只当兜底——目标是 12 分钟内收尾（此前单轮常跑到 14 分钟贴 900s 顶，11-07 连续 3 轮超时）。
-5. **逐条 `sub` 读原文**（不看摘要下判断）。`NO_SUBTITLE` → 跳过（除非本人开了转写，那就另说）。
-   **深读抽帧（2026-10-27 新增）**：对读字幕后仍难判断、或无字幕但值得赌一眼的候选，跑
-   `python scripts/frames.py --bv BV1xxx`（默认 3x3 九宫格，每格 720px 带时间戳），
-   然后用 image 工具读九宫格补判断（画面本身就是一路证据：有没有干货、是不是标题党、制作质量）。
-   - **画面路是补充不是替代**：字幕能判断的就别抽帧（抽帧要下载，贵）；**每轮抽帧 ≤ 2 条**；没字幕轨但有硬字幕的用 `--strip`（按字幕时刻采样拼长图，默认 480p/24 帧）
-   - 输出在 `state/frames/frames_<BV>.png` + `.json`（每格时间点）
-   - ⚠️ 沙箱 ffmpeg 在线拉 CDN 流会段错误 → 脚本自动降级为**稀疏下载**：只拉 moov + 每个采样点的 GOP 段（Python Range 并发 + mp4 box 解析），实测 9 帧下载 ~6MB（全片 26MB）、44 分钟长视频 strip 下载 7.1MB（全片 55MB），抽帧结果与全片逐字节一致；稀疏方案不可用（非 faststart）才回退整片下载
-6. **四维打分**（各 0-5，写在报告里）：**相关性 / 新奇度 / 实操价值 / 新鲜度**
-   - 总分 ≥ 阈值（默认 **≥ 14/20**）才留；**新奇度 ≤ 1 的直接砍**（只是重复他已知道的）。
-7. **判重**：`seen check`，SEEN 的跳过；每条处理完 `seen add`。
-8. **写报告** `out/<YYYY-MM-DD>.md`（格式见下）。
-9. **推送（汇报候选）**：只推总分最高的 **0-3 条**到你的渠道（按渠道配置解析 target）。**0 条就别推、别凑数**。—— 注意：此「推送」= **汇报候选清单**（给你看的），**≠ 评论区 @ 主号**（那个走第 6 条频控，每轮 ≤1，config `mention` 段，10-27 口径）。
-10. **（可选）谁找我**：`notify --new-only`，有新 @/回复就在推送里附一行；`dm --new-only` 看私信里有没有新话（**只读不回**）。
-11. **结尾**：报告后加一行「本轮扫了 N 条、读了 M 条字幕、留下 K 条」。
+2. **`check`**：cookie 失效 → 直接停，**别硬跑**，报「cookie 失效，需要重新导出」。
+3. **刷首页**：`feed --num 12 --rounds 1`，最多两屏；从这一屏里挑**一条**最值得看的。
+4. **已赞的跳过**：挑中候选先 `liked --bv BV1xxx`；`"liked": true` 就换下一条，别花时间读。只查你打算看的那一两条，**不逐条查整屏**（12 次请求）。
+   **不扫 `seen.md` 判「是不是读过」**（11-14 老板：已点赞的跳过，不用扫本地文件判断已读）；`seen.md` 只由 `reply` 自己写 @ 去重。
+5. **真读一条**：`sub BV1xxx`（不看摘要下判断；`NO_SUBTITLE` → 跳过）。**一巡只真读一条**，读完这条就收尾，不在同一巡里连刷两条。
+   - 读字幕后仍难判断、或无字幕但值得赌一眼 → 可抽帧 `python scripts/frames.py --bv BV1xxx`（补充不是替代；每巡 ≤2 条）。
+6. **把时长花掉**：`jitter --watch <秒> --sleep`（6:54 → 414；16:20 → 980；21:48 → 1308）。
+7. **按判断动手** —— **不设分数阈值、不设条数配额**（唯一标准：值不值得他花十分钟看）：
+   - 觉得好 → `like --bv BV1xxx --yes`
+   - 有话要说 → `comment --bv BV1xxx --text "…" --yes`（自发评论，不写 mention-log，**不走 mention 闸**）
+   - 觉得老板会感兴趣 → `reply --bv BV1xxx --text "@夜灬瞬 …" --yes`（**@ 只走 reply**）
+8. **收尾打卡**：`jitter --close`（间隔从这一刻算）。
+9. **上闹钟**：`plan.py next` → 一次性 rrule（`FREQ=DAILY;COUNT=1`），改当前巡检任务；不自己编间隔、不按整点。
+10. **写账**：`state/out/<YYYY-MM-DD>.md` 记这一巡；按固定骨架汇报（见下）。**不用 `seen add`**。
 
 ## 请求层退避（2026-10-27 对齐 dsh-bili-whale）
 
@@ -148,7 +141,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 写冷却（2026-10-27 对齐 whale）
 
-两次**写操作**（@/评论/动态/私信/草稿批准）之间最短间隔 `write.cooldown_sec`（默认 120s）——查 write-log + mention-log 里最后一次真发的 ts，不足就 die。**删动态不冷却**（纠错优先）；干跑不查（没真写）。读请求不设全局间隔（每小时一轮密度低，已有退避/熔断覆盖）。
+两次**写操作**（@/评论/动态/私信/草稿批准）之间最短间隔 `write.cooldown_sec`（默认 60s）——查 write-log + mention-log 里最后一次真发的 ts，不足就 die。**删动态不冷却**（纠错优先）；干跑不查（没真写）。读请求不设全局间隔（已有退避/熔断覆盖）。
 
 ## 触发时刻随机化（2026-10-27）
 
@@ -179,7 +172,7 @@ python scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 c
 3. 同一 BV 只发一次（查 `seen.md` 的 `mentioned` 记录）
 4. 正文 ≤ 150 字，必须包含 `@昵称`，**正文就是结论**：`@昵称` + 一句「为什么值得」（不是"值得看一眼"这种空话）
 5. 敏感词闸：正文命中 `config.json` 的 `mention.forbid` 里任一词 → 拒发（防档案/项目名漏进公开评论）
-6. 频控（可配，`config.json` → `mention`）：**2026-10-27 老板拍板：每轮 ≤1、每小时 ≤1、每天不限**（雷达照旧每小时跑，但一小时只给主号一条，多了看不过来）· **2026-11-13 17:43 老板改口「其实限制可以去掉」→ `mention.per_hour` 归零（0 = 不限）**，`per_day` 本就 0；硬闸仍 = 「同一视频只发一条」。用 `radar.py rate` 看用量、改参数
+6. 频控（可配，`config.json` → `mention`）：**2026-11-13 17:43 老板「其实限制可以去掉」→ `per_hour`、`per_day` 全归零（0 = 不限）**；硬闸仍 = 「同一视频只发一条」+ 写冷却 60 秒。用 `radar.py rate` 看用量、改参数
 7. **发完自检**：自动用**匿名请求**回查这条评论可不可见（阿瓦隆拦了就记一行；别人看不到 = 没真发出去）
    - ⚠️ **visible_anon 只能当参考，不能当结论**（2026-10-27 实证）：① 新号/新登录态发首评有**审核延迟**（当时不可见、半小时后主号确认可见）；② 晚些时候连 15:00 那条「已确认可见」的评论本地回查也报 False → 说明该接口对匿名/排序已不可靠。**记「未验证」即可，绝不据此重发或判定被拦。**
 8. **评论区快筛（2026-10-27 轻量版）**：@ 分享前先跑 `comment-check --bv`（拉热评 top10 规则统计：数字昵称 / 昵称关键词「大肥鱼·肥鱼」/ AI 句式 / 同质文案）。疑似比例 ≥30% → **推送注明「⚠️ 评论区疑水军」或暂缓这次 @**，由本人定夺；不拦截、不误伤。
@@ -214,7 +207,7 @@ python scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 c
 老板原话：「你看到你感兴趣的视频可以发评论，这个权限我给你放开，你自发评论（不属于兴趣雷达）可以不用艾特我」。
 
 - 用途：刷到真正感兴趣的视频，以小号身份正常发一条评论；**不强制 @ 主号**、不计入雷达「同一视频一条」闸（那道闸只管 @ 推荐）
-- 闸（代码里，`write.comment`）：`enabled` → `--yes` → 正文 ≤200 字 → 敏感词 fail-closed → 频控（**小时 ≤3、天不限**，2026-10-27 老板调：当个正常人，防高频风控）→ 同一视频只发一条 → 连续失败 3 次自动关
+- 闸（代码里，`write.comment`）：`enabled` → `--yes` → 正文 ≤200 字 → 敏感词 fail-closed → 频控（`per_hour` / `per_day` 当前 0 = 不限，11-13 17:43 取消）→ 同一视频只发一条 → 连续失败 3 次自动关
 - 红线不变：评论里**不许带**兴趣档案/项目名/路径/私人信息（forbid 兜底）；不吵架、不引战、不 @ 第三人
 - 账本：`write-log.jsonl`（kind=comment，含 bv/rpid/visible_anon）；发完自动匿名回查可见性
 - 用法：`radar.py comment --bv BV1xxx --text "…" --yes`（默认干跑）
@@ -254,8 +247,8 @@ scripts/
 │   ├── core.py       基建：常量/路径/cookie/配置/die（101 行，零依赖）
 │   ├── client.py     请求层：退避/熔断/wbi/csrf/GET+POST（173 行）
 │   ├── gates.py      写闸：冷却/频控/失败关闸/账本（144 行）
-│   ├── cli.py        argparse 主入口 + 全量 re-export（230 行）
-│   ├── browse.py     浏览：check/搜索/首页流/字幕/seen（187 行）
+│   ├── cli.py        argparse 主入口 + 全量 re-export（243 行）
+│   ├── browse.py     浏览：check/搜索/首页流/已赞/字幕/seen（198 行）
 │   ├── comment.py    评论：@主号/自发/快筛/可见性（375 行，最大）
 │   ├── draft.py      草稿审核状态机（184 行）
 │   ├── notify.py     通知与私信（198 行）
@@ -266,7 +259,7 @@ scripts/
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 150 用例（unittest，零网络）
+└── tests/            # 160 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -280,25 +273,25 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-150 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+160 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
-state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
+state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）、
+`liked` 平台已赞探测（已赞 → 巡更跳过）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
 
 ## 报告格式（`state/out/<日期>.md`）
 
-```markdown
-# 兴趣雷达 · 2026-10-15
+按巡记流水，一条视频一段（**不再做四维打分、不再写「待读队列」**）：
 
-## 1. 标题（BV号）
-- UP / 时长 / 播放量 / 发布：`YYYY-MM-DD` / 链接
-- 打分：相关性 4 · 新奇度 3 · 实操价值 3 · 新鲜度 4（= 14）
-- 为什么值得：（两三句，具体到"他为什么会在意"，不许空话）
-- 一句话：（如果推给他，就这一句）
+````markdown
+## 16:31 巡（开门 16:31 → 收尾 16:37）
+- 读：BV1xxx《…》9:54 / 2650（feed 12 条；已赞跳过 1 条）
+- 判断：…（一句话：为什么是这条）
+- 写操作：点赞 ✅；评论 rpid … · 公开可见；@ ❌（说不出「他为什么该看这条」）
+- 跳过：BV1yyy《…》理由；BV1zzz《…》理由
+````
 
----
-扫了 N 条 · 读了 M 条字幕 · 留下 K 条 · 本轮到 X 点停
-```
+对话里按下面「汇报口径」的固定骨架出，不贴整篇流水。
 
 ## 汇报口径（对话里给人看的）
 
@@ -307,7 +300,7 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 ```markdown
 **值班 · 16:31 巡**（开门 16:31 → 收尾 16:37，6 分钟）
 节奏：上次收尾 15:27 + 4 分钟 → 16:31 醒（`plan.py next` 一次性闹钟）
-账：feed 9 条 · 读 2 条 · 跳过 7 条 · 点赞 2 · 评论 1 · @ 1（11-13 17:43 起没有每小时上限，报实数）
+账：feed 9 条 · 读 1 条 · 跳过 8 条 · 点赞 1 · 评论 1 · @ 1（11-13 17:43 起没有每小时上限，报实数）
 下一次醒点：16:42
 
 | BV | 标题（时长 / 播放） | 点赞 | 评论 | @ |
@@ -320,7 +313,7 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 
 **@ 的判断**：@ 了的必须一句话说清「他为什么该花十分钟看这条」，具体到内容；没 @ 的也必须写「为什么不够」。
 
-**跳过（7 条）**：BV1xxx《…》理由；BV1yyy《…》理由；…
+**跳过（8 条）**：BV1xxx《…》理由；BV1yyy《…》理由；…
 ```
 
 硬规矩：
@@ -338,15 +331,13 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 
 ## 定时（DSH 的 schedule 工具）
 
-本机没有 `openclaw cron`（原 `scripts/apply-cron.py` 已删）。定时任务由 agent 用 **`schedule_create`** 建，
-参数是 `DTSTART` + `RRULE` 两行加一段 prompt —— 这三样都由 `scripts/schedule.py` 直接打印，复制即可：
+本机没有 `openclaw cron`（原 `scripts/apply-cron.py` 已删）。**当前醒点由 `plan.py next` 打印**（收尾 + 1–10 分钟，一次性 `FREQ=DAILY;COUNT=1`）；`schedule.py` 只剩备份排班，参数是 `DTSTART` + `RRULE` 两行加一段 prompt：
 
 ```bash
-python scripts/schedule.py valley        # 打印谷时模式的 rrule + prompt，并记进 state/config.json
-python scripts/schedule.py all           # 全天每小时
-python scripts/schedule.py night --minute 0     # 夜班保安：22:00–05:00 每小时巡一次（白天不排班）
-# 每次触发后先 `radar.py jitter --max-min 10 --sleep` 抖一下：rrule 是死的，抖动在运行时做
-python scripts/schedule.py --every-minutes 10   # 固定间隔：每 10 分钟一轮
+python scripts/schedule.py valley        # 备份：谷时模式的 rrule + prompt
+python scripts/schedule.py all           # 备份：全天每小时
+python scripts/schedule.py night --minute 0     # 备份：夜班保安 22:00–05:00 每小时
+python scripts/schedule.py --every-minutes 10   # 备份：固定间隔（当前口径不用）
 python scripts/schedule.py --rrule-only  # 只要 rrule
 python scripts/schedule.py valley --minute 43   # 换个分钟偏移（默认 17，避开整点）
 python scripts/schedule.py all --minute 0       # 整点排班（备用写法；当前醒点由 plan.py next 自己定，不贴整点）
@@ -356,10 +347,10 @@ python scripts/schedule.py all --random-minute  # 备选：随机分钟，每巡
 - **all**：全天每小时（`RRULE:FREQ=DAILY;BYHOUR=0,…,23;BYMINUTE=17`）
 - **valley（梁文谷）**：只在 DeepSeek 谷时的小时跑（`BYHOUR=0,1,2,3,4,5,6,7,8,12,13,18,19,20,21,22,23`）——
   工作日 9-12/14-18 是高峰，其余含周末都是谷时
-- **固定间隔（`--every-minutes N`）**：`RRULE:FREQ=MINUTELY;INTERVAL=N`。本机当前就是这种：
-  **每 10 分钟一轮，一次触发只扫一轮**。DSH 的 rrule 子集里 `MINUTELY`/`HOURLY` **不接受 BY 部件**，
+- **固定间隔（`--every-minutes N`）**：`RRULE:FREQ=MINUTELY;INTERVAL=N`。这是**备份写法**，当前口径不用
+  （现在每巡结束用 `plan.py next` 上一次性的「+1–10 分钟」闹钟）。DSH 的 rrule 子集里 `MINUTELY`/`HOURLY` **不接受 BY 部件**，
   所以间隔模式没有 `BYHOUR`/`BYMINUTE`，`DTSTART` 只是对齐起点。间隔必须大于单轮预算（现在按 8 分钟收尾），
   否则会排队撞轮
-- 建任务时：`target=this_session`（提醒式，正常回 NO_REPLY = 静默）或 `new_once`（每次开新会话写独立报告）；
+- 建任务时：`target=this_session`（提醒式）或 `new_once`（每次开新会话写独立报告）；
   prompt 用 `python scripts/schedule.py --prompt` 打出来的那份（源文件 `templates/schedule-prompt.md`，可自己改）
 - 频率别贪：每小时一轮 ≈ 一天 24 次；每 10 分钟一轮 ≈ 一天 144 次——高频的意义在**及时**，不在覆盖，别把预算耗在空轮上
