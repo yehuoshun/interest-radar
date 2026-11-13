@@ -4,7 +4,7 @@
 
 ## 这是什么仓库
 
-B 站「兴趣雷达」：读兴趣档案 → 按兴趣线搜 → 读字幕原文 → 判重 → 写日报 → 挑值得看的东西 `@` 主号。本机 DSH 直接可用，也能当纯 CLI 跑。
+B 站「兴趣雷达」：24 小时值班刷首页推荐流 → 一巡挑一条真读字幕 → 觉得值就点赞/评论，值得老板看就 `@` 主号 → 收尾，按「视频时长 + 1–10 分钟」定下一次醒点。本机 DSH 直接可用，也能当纯 CLI 跑。
 
 | 想知道 | 去哪 |
 |---|---|
@@ -28,11 +28,12 @@ B 站「兴趣雷达」：读兴趣档案 → 按兴趣线搜 → 读字幕原�
 - 写操作默认**干跑**，加 `--yes` 才真发；写完冷却 `write.cooldown_sec`（60 秒）会挡住「点完赞立刻评论」。
 - `@` 老板**只走 `radar.py reply`**：`comment` 是自发评论路径，不记 `mention-log.jsonl`、不查 seen 的 `mentioned`（2026-11-13 踩过，SKILL.md 有标注）。
 - 同一视频只发一次（`same_video_once`）；每小时上限（like 2 / comment 1 / mention 2）原本是**防封号安全阀**，11-13 17:43 老板说「其实限制可以去掉」→ 三个 `per_hour` 已归零（`=0` 即不限）；现在只剩写冷却 60 秒 + 同一视频一次两道真闸。
+- **已赞跳过**：`radar.py liked --bv` 查平台状态（11-14 老板「已点赞的视频也跳过，不用扫本地文件判断是否已读」）；巡更不拿 `seen.md` 判已读，`seen.md` 只由 `reply` 写 @ 去重。
 - 分数阈值已作废：`budget.min_total_score = 0`、`mention.min_score = 0`（老板「不要设定阈值」）。判断交回模型，闸只防爆号。
 - **凭据与运行态不进仓库**：cookie 在工作区 `config/bilibili_cookies.txt`（`core.py:12-15` 的候选顺序：工作区 config → 仓库 config → 旧 OpenClaw）；运行数据全在 `state/`（`.gitignore` 已挡：`config.json`、`seen.md`、`out/`、`jitter-log.jsonl`、`write-log.jsonl`、`mention-log.jsonl`）。不要把 `state/` 内容、cookie、头像缓存贴进提交或对话。
 
 ## 改完要做的
 
-- 跑单测：`cd scripts; python -m unittest discover -s tests`（当前 **157 例**）。
+- 跑单测：`cd scripts; python -m unittest discover -s tests`（当前 **160 例**）。
 - 动代码顺手更新 `AGENT.md` 的行号与符号表（它自己写着「行号会漂」），用例数变了同步 `SKILL.md` / `PARAMETERS.md` / `README.md` / `.github/workflows/ci.yml`。
 - 临时文件写项目 `tmp/`（已 ignore），收尾删掉。
