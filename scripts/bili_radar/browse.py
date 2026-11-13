@@ -108,6 +108,17 @@ def cmd_feed(a):
     print(json.dumps({"count": len(out), "videos": out}, ensure_ascii=False, indent=2))
 
 
+def cmd_liked(a):
+    """平台侧：这个 BV 我赞过没有（`archive/has/like`，data=0/1）。
+
+    2026-11-14 老板口径：已点赞的视频跳过；判断「是不是已读」不再扫本地文件
+    （`seen.md` 只留给 @ 去重），巡更以平台状态为准 —— `liked: true` 就换下一条。
+    """
+    cookie = load_cookie()
+    r = get(f"{API}/x/web-interface/archive/has/like?bvid={a.bv}", cookie)
+    print(json.dumps({"bvid": a.bv, "liked": bool(r.get("data"))}, ensure_ascii=False))
+
+
 def fetch_subtitle_text(cookie: str, bv: str, cid: int):
     """取一个字幕的全文。**必须用 wbi 签名的 `player/wbi/v2`**。
 
