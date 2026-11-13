@@ -62,13 +62,23 @@ def rest_min(rng=None) -> int:
     return rng.randint(REST_MIN, REST_MAX)
 
 
+def _ceil_minute(dt):
+    """向上取整到下一分钟：醒点至少比基点晚一个整分钟。
+
+    直接 `replace(second=0)` 会把 05:27:44 + 1 分钟压成 05:28:00（只差 16 秒），
+    `gap_min` 报 0，gate 也会把下一巡当成同一分钟重复触发挡掉。
+    """
+    floored = dt.replace(second=0, microsecond=0)
+    return floored if floored == dt else floored + timedelta(minutes=1)
+
+
 def next_wake(now=None, rng=None):
     """下一次醒来的时刻 = 上一次还在 B 站的时刻 + 1–10 分钟。"""
     now = now or datetime.now(TZ)
     base = last_seen() or now
-    wake = (base + timedelta(minutes=rest_min(rng))).replace(second=0, microsecond=0)
+    wake = _ceil_minute(base + timedelta(minutes=rest_min(rng)))
     if wake <= now:
-        wake = (now + timedelta(minutes=1)).replace(second=0, microsecond=0)
+        wake = _ceil_minute(now + timedelta(minutes=1))
     return wake
 
 

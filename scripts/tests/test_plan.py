@@ -65,6 +65,17 @@ class TestPlan(unittest.TestCase):
 
         self.assertEqual(p.next_wake(now, Rng()), datetime(2026, 11, 13, 16, 22, tzinfo=p.TZ))
 
+    def test_next_wake_rounds_up_to_next_minute(self):
+        """收尾在 16:18:30 + 1 分钟 → 16:20，不压成 16:19 的 30 秒（否则 gap_min=0、gate 会挡）。"""
+        now = datetime(2026, 11, 13, 16, 18, 30, tzinfo=p.TZ)
+        self._log(now, "close")
+
+        class Rng:
+            def randint(self, low, high):
+                return 1
+
+        self.assertEqual(p.next_wake(now, Rng()), datetime(2026, 11, 13, 16, 20, tzinfo=p.TZ))
+
     def test_next_wake_never_in_past(self):
         """算出来已经过去的醒点（比如隔了很久才想起）→ 顺延到下一分钟，不排过去的闹钟。"""
         now = datetime(2026, 11, 13, 16, 20, tzinfo=p.TZ)
