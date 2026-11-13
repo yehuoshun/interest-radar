@@ -15,7 +15,8 @@
 4. 真读 1–2 条（`python scripts/radar.py sub <BV>`）。读完再决定动不动手：
    - 好 → `radar.py like --bv BV1xxx --yes`（一巡最多 2 个）
    - 有话要说 → `radar.py comment --bv BV1xxx --text "…" --yes`（一巡最多 1 条，≤200 字，别夸，说具体的）
-   - 觉得老板用得上 → `radar.py reply --bv BV1xxx --text "@夜灬瞬 …" --yes`（一巡最多 1 条，夜里总共别超 2 条）
+   - 觉得老板用得上 → `radar.py reply --bv BV1xxx --text "@夜灬瞬 …" --yes`（一巡最多 2 条，夜里总共最多 4 条；
+     别为了凑数 @，说不清「他为什么现在需要看这个」就不 @）
 5. 处理过的都 `radar.py seen add <日期> <BV> <verdict> [标题]`；值得留的写进
    `state/out/<YYYY-MM-DD>.md`（格式见 SKILL.md）。
 

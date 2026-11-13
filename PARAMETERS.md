@@ -48,8 +48,8 @@
 |---|---|---|---|---|
 | `enabled` | true | 维护者/自动关闸 | 热加载 · 闸① | ✅ 接线（comment.py:49） |
 | `name` / `mid` | 主号 | 维护者 | 热加载 · 闸① / notify | ✅ 接线（comment.py:48、notify.py:82） |
-| `per_round` | 1 | 维护者 | —— | ⚠️ 漂移：SKILL.md 说「每轮 ≤1」（10-27 口径），**但代码闸没读它**（comment.py:63-74 只读 per_hour/per_day）；charter.md 39 行还停在 10-15 「每轮条数不限」——三处口径互不一致 |
-| `per_hour` | 1 | 维护者 | 热加载 · 闸⑥ | ✅ 接线（comment.py:63）——当前实际由它兜底「每轮 ≤1」 |
+| `per_round` | 2 | 维护者 | —— | ⚠️ 漂移：**代码闸没读它**（comment.py:63-74 只读 per_hour/per_day），改它不生效；11-13 与 `per_hour` 一起从 1 放到 2，只为文档口径一致 |
+| `per_hour` | 2 | 维护者 | 热加载 · 闸⑥ | ✅ 接线（comment.py:63）——**实际生效项**；11-13 老板「一晚上只艾特我一次啊」后 1→2（`chg-20261113-120250-b0414b`），配合 prompt 层「整夜 ≤4」 |
 | `per_day` | 0 | 维护者 | 热加载 · 闸⑥ | ✅ 接线（comment.py:64） |
 | `min_score` | 17 | 维护者 | —— | 💤 死配置：全代码+tests 零引用；SKILL.md 只写「总分 ≥ min_score」**不写数值**——模型看不到 17，真值无人执行（实际生效的是 14，见 B 组） |
 | `template` | 兜底文案 | 维护者 | —— | 💤 死配置：comment.py:80 用硬编码兜底「@{name} 这个值得看一眼」，template 从不被读 |
