@@ -247,7 +247,7 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | `test_schedule.py` | rrule 生成（DAILY+BY 部件 / MINUTELY 间隔无 BY / 随机分钟范围 / 拨钟提前量） | 10 例 |
 | `test_write_cooldown.py` | 写冷却（两账本取最新） | 5 例 |
 
-**规矩**：改核心闸逻辑（draft/engagement/冷却/退避）**必须跑一遍全绿**；新功能补测试。当前全量 **160 例**（`Ran 160 tests … OK`，2026-11-14）。
+**规矩**：改核心闸逻辑（draft/engagement/冷却/退避）**必须跑一遍全绿**；新功能补测试。当前全量 **161 例**（`Ran 161 tests … OK`，2026-11-14）。
 
 ---
 
