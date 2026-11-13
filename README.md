@@ -54,7 +54,7 @@
 ## 测试
 
 ```bash
-cd scripts && python -m unittest discover -s tests -v   # 135 用例 / 零网络 / 零 cookie / <1s
+cd scripts && python -m unittest discover -s tests -v   # 138 用例 / 零网络 / 零 cookie / <1s
 ```
 
 GitHub Actions 在 push 与 PR 上跑同一套：`.github/workflows/ci.yml`（语法检查 + 单测 + CLI 冒烟）。
@@ -85,6 +85,7 @@ python scripts/schedule.py --every-minutes 10  # 固定间隔：每 10 分钟一
 python scripts/schedule.py valley              # 打印谷时模式的 DTSTART+RRULE 与 prompt
 python scripts/schedule.py all --rrule-only    # 全天每小时，只要 rrule
 python scripts/schedule.py valley --minute 43  # 换分钟偏移（默认 17，避开整点）
+python scripts/schedule.py all --random-minute # 随机开巡分钟：每巡重掷，下次触发至少 +25 分钟
 ```
 
 把打印出来的 rrule + prompt 交给 `schedule_create`（`target=this_session` 静默提醒式，`new_once` 每次开新会话写报告）。
@@ -123,7 +124,7 @@ scripts/radar.py      CLI 入口：取数 / 判重 / 记反馈 / 权重
 scripts/init.py       初始化 state/（拷模板 + 默认 config.json）
 scripts/schedule.py   调度：打印 rrule + prompt 给 DSH（all / valley / --every-minutes）
 scripts/bili_radar/   实现（core / client / gates + 各域模块）
-scripts/tests/        135 用例（unittest，零网络）
+scripts/tests/        138 用例（unittest，零网络）
 state/                运行态（gitignore）：profile / charter / config / out / frames
 templates/            profile.md、charter.md、schedule-prompt.md
 ```

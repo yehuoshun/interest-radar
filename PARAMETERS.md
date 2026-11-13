@@ -96,6 +96,8 @@
 |---|---|---|---|
 | `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0,1,…,23;BYMINUTE=43`（**24 小时值班**，11-13 老板「白天也继续吧，改成24小时」；此前是 night = 22:00–05:00 每小时一巡）；另有 valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
 | 触发不落整点 | `BYMINUTE=17` | `schedule.py --minute`（DSH rrule 无 stagger，用分钟偏移等效） | ✅ 接线（外部） |
+| 开巡分钟随机 | 2–58，每巡重掷 | `schedule.py --random-minute`（`pick_minute()`；DSH rrule 无随机，每巡拨一次钟） | ✅ 接线（外部） |
+| 拨钟后最少提前量 | 25 分钟 | `schedule.py` 的 `RANDOM_LEAD_MINUTES`（防止拨回本小时、自己撞自己） | ✅ 接线（外部） |
 | 跑一轮的间隔（分钟） | 10 | `schedule.py --every-minutes`（`FREQ=MINUTELY;INTERVAL=N`，无 BY 部件） | ✅ 接线（外部） |
 | 谷时口径（valley） | 工作日 9-12/14-18 高峰 | 📐 注释口径 | 📐 |
 
@@ -145,7 +147,7 @@
    - `python scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂到定时任务做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
    - `python scripts/radar.py rate` — 看 @ 频控用量与参数
    - `radar.py mention --bv <BV> --dry-run`（默认干跑）— 验闸与文案
-   - `cd scripts && python -m unittest discover tests -v` — 135 用例回归（零网络）
+   - `cd scripts && python -m unittest discover tests -v` — 138 用例回归（零网络）
 5. **审计口径**：本文件每次改参数后顺手核一遍「接线/漂移」列，保持地图与代码同步。
 
 ---

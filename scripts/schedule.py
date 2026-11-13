@@ -33,6 +33,7 @@ RFC 5545 子集（DTSTART + RRULE）+ 一段 prompt。所以本脚本不再改 c
 import argparse
 import json
 import re
+import random
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -57,19 +58,41 @@ DESC = {
 }
 
 
-def next_start(hours, minute) -> datetime:
-    """DTSTART：现在之后最近一个「允许的小时 + 指定分钟」。"""
+# 随机分钟的取值范围：避开 :00/:01 与 :59，免得撞整点或跨点抖动。
+MINUTE_LO, MINUTE_HI = 2, 58
+# 随机拨钟时，下一次触发至少留在 25 分钟之后：一巡 15 分钟收尾，别自己撞自己。
+RANDOM_LEAD_MINUTES = 25
+
+
+def pick_minute(low: int = MINUTE_LO, high: int = MINUTE_HI) -> int:
+    """随机挑一个「每小时第几分钟」——每巡换一个，别让闹钟永远落在同一个分钟上。
+
+    DSH 的 rrule 没有随机能力，所以随机只能落在分钟这个参数上：每巡开始时重算一次，
+    下一个整点就会在另一个分钟开门。
+    """
+    if not 0 <= low <= high <= 59:
+        raise ValueError(f"分钟范围要落在 0–59 且 low≤high：{low}–{high}")
+    return random.randint(low, high)
+
+
+def next_start(hours, minute, not_before=None) -> datetime:
+    """DTSTART：现在之后最近一个「允许的小时 + 指定分钟」。
+
+    `not_before` 用来挡「刚巡完又被拨回本小时」：随机拨钟时必须给它留出提前量。
+    """
     now = datetime.now(TZ).replace(second=0, microsecond=0)
+    floor = not_before or now
     for step in range(0, 48):
         cand = (now + timedelta(hours=step)).replace(minute=minute)
-        if cand > now and cand.hour in hours:
+        if cand > floor and cand.hour in hours:
             return cand
     return now.replace(hour=hours[0], minute=minute) + timedelta(days=1)
 
 
-def build_rrule(mode: str, minute: int = 17) -> str:
+def build_rrule(mode: str, minute: int = 17, lead_minutes: int = 0) -> str:
     hours = HOURS[mode]
-    start = next_start(hours, minute)
+    now = datetime.now(TZ).replace(second=0, microsecond=0)
+    start = next_start(hours, minute, now + timedelta(minutes=lead_minutes))
     byhour = ",".join(str(h) for h in hours)
     return (f"DTSTART;TZID=Asia/Shanghai:{start:%Y%m%dT%H%M%S}\n"
             f"RRULE:FREQ=DAILY;BYHOUR={byhour};BYMINUTE={minute}")
@@ -103,12 +126,12 @@ def describe(mode: str) -> str:
     return DESC[mode]
 
 
-def plan(mode: str, minute: int = 17) -> str:
+def plan(mode: str, minute: int = 17, lead_minutes: int = 0) -> str:
     """把模式翻译成 rrule；间隔模式和小时模式走不同分支。"""
     m = INTERVAL_MODE_RE.match(mode)
     if m:
         return build_interval_rrule(int(m.group(1)))
-    return build_rrule(mode, minute)
+    return build_rrule(mode, minute, lead_minutes)
 
 
 def prompt_text() -> str:
@@ -141,11 +164,15 @@ def main():
     ap.add_argument("mode", nargs="?", choices=sorted(HOURS) + ["every<N>m"],
                     help="all | valley（省略=看当前）")
     ap.add_argument("--minute", type=int, default=17, help="每小时第几分钟触发（默认 17，避开整点）")
+    ap.add_argument("--random-minute", action="store_true",
+                    help="把 --minute 换成随机分钟：每巡拨一次钟，打散固定节拍")
     ap.add_argument("--every-minutes", type=int, default=0, metavar="N",
                     help=f"改成固定间隔：每 {INTERVAL_MIN}–{INTERVAL_MAX} 分钟一轮")
     ap.add_argument("--prompt", action="store_true", help="只打印 prompt")
     ap.add_argument("--rrule-only", action="store_true", help="只打印 rrule")
     a = ap.parse_args()
+    if a.random_minute:
+        a.minute = pick_minute()
 
     cur = (read_config().get("schedule") or {}).get("mode") or "all"
     if a.every_minutes:
@@ -156,7 +183,8 @@ def main():
         mode = a.mode or cur
         if not INTERVAL_MODE_RE.match(mode) and mode not in HOURS:
             ap.error(f"不认识的模式：{mode}（用 all / valley / --every-minutes N）")
-    rrule = plan(mode, a.minute)
+    lead = RANDOM_LEAD_MINUTES if a.random_minute else 0
+    rrule = plan(mode, a.minute, lead)
     if mode != cur:
         save_state(mode, rrule)
 
@@ -164,6 +192,8 @@ def main():
         print(prompt_text())
         return
 
+    if a.random_minute:
+        print(f"这一巡随机拨到 :{a.minute:02d}（下一个整点按它触发）")
     print(f"模式：**{mode}** —— {describe(mode)}")
     print(f"rrule（喂给 schedule_create）：\n{rrule}")
     if not a.rrule_only:

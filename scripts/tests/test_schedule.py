@@ -59,5 +59,32 @@ class TestDailyRrule(unittest.TestCase):
         self.assertIn("BYMINUTE=43", r)
 
 
+class TestRandomMinute(unittest.TestCase):
+    """随机拨钟：分钟在范围内、下一次触发至少留出提前量。"""
+
+    def test_pick_minute_in_range(self):
+        picks = [sched.pick_minute() for _ in range(200)]
+        self.assertTrue(all(sched.MINUTE_LO <= m <= sched.MINUTE_HI for m in picks), picks[:10])
+        self.assertGreater(len(set(picks)), 5)          # 真随机，不是常数
+
+    def test_pick_minute_rejects_bad_range(self):
+        with self.assertRaises(ValueError):
+            sched.pick_minute(58, 2)
+        with self.assertRaises(ValueError):
+            sched.pick_minute(-1, 30)
+
+    def test_lead_minutes_pushes_next_slot(self):
+        import re
+        from datetime import datetime
+
+        r = sched.build_rrule("all", 30, lead_minutes=25)
+        stamp = r.splitlines()[0].split(":")[-1]
+        start = datetime.strptime(stamp, "%Y%m%dT%H%M%S").replace(tzinfo=sched.TZ)
+        now = datetime.now(sched.TZ)
+        self.assertGreaterEqual((start - now).total_seconds(), 24 * 60, r)
+        self.assertIn("BYMINUTE=30", r)
+        self.assertTrue(re.search(r"BYHOUR=0,1,", r))
+
+
 if __name__ == "__main__":
     unittest.main()
