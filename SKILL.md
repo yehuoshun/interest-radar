@@ -73,14 +73,14 @@ python $R jitter --close                                 # 一串收尾打卡（
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
-python $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸；`budget.min_total_score` 11-13 起为 0（不卡分；只剩防封号安全阀））
+python $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸；`budget.min_total_score` 11-13 起为 0（不卡分），`write.comment.per_hour` 同日 17:43 归零 = 不限）
 python $R dynamic-del --dyn-id 1260… --yes          # 删掉发错的动态
 python $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_mid 白名单）
 python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
 ```
 
 > ⚠️ **`comment` ≠ `reply`（2026-11-13 踩过）**：两者都真能发出带 `@昵称` 的评论，但 `comment` 是「自发评论」，
-> 只记 `write-log.jsonl`，**不写 `mention-log.jsonl`、不查「同一视频只发一次」**——于是 mention 频控（每轮/每小时 ≤1）
+> 只记 `write-log.jsonl`，**不写 `mention-log.jsonl`、不查「同一视频只发一次」**——于是 mention 频控（`per_hour`，11-13 17:43 起为 0）
 > 形同不存在，`radar.py rate` 也永远显示 0。@ 主号**必须**用 `reply`。`comment` 现在会在正文含 `@mention.name` 时
 > 打一行 stderr 提醒，但别指望它拦你。
 
@@ -103,7 +103,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 - 不再按关键词挖线索，改用首页推荐流：`radar.py feed --num 12 --rounds 2`。
 - 真读几条（`radar.py sub <BV>`），读完再决定：
-  - 好 → `radar.py like --bv BV1xxx --yes`（写闸 `write.like`，per_hour 现为 2 —— 防封号安全阀，不参与判断；同一视频只点一次；`--cancel` 取消赞）
+  - 好 → `radar.py like --bv BV1xxx --yes`（写闸 `write.like`，`per_hour` 11-13 17:43 起为 0 = 不限；同一视频只点一次；`--cancel` 取消赞）
   - 有话要说 → `radar.py comment --bv BV1xxx --text "…" --yes`（自发评论，≤200 字，**不走 mention 闸**）
   - 觉得老板会感兴趣 → `radar.py reply --bv BV1xxx --text "@夜灬瞬 …" --yes`（**只有这条走 mention 闸 / 频控 / 同一视频只发一次**）
 - 判据：只对真读完、有具体话可说的视频动手；推广、广告、纯搬运、梗图不点不评。零互动是合法结果，不为产量凑。
@@ -179,7 +179,7 @@ python scripts/bili_qr_login.py   # 生成二维码 → 轮询 180s → 跟随 c
 3. 同一 BV 只发一次（查 `seen.md` 的 `mentioned` 记录）
 4. 正文 ≤ 150 字，必须包含 `@昵称`，**正文就是结论**：`@昵称` + 一句「为什么值得」（不是"值得看一眼"这种空话）
 5. 敏感词闸：正文命中 `config.json` 的 `mention.forbid` 里任一词 → 拒发（防档案/项目名漏进公开评论）
-6. 频控（可配，`config.json` → `mention`）：**2026-10-27 老板拍板：每轮 ≤1、每小时 ≤1、每天不限**（雷达照旧每小时跑，但一小时只给主号一条，多了看不过来）· 硬闸仍 = 「同一视频只发一条」+ 总分 ≥ min_score。用 `radar.py rate` 看用量、改参数
+6. 频控（可配，`config.json` → `mention`）：**2026-10-27 老板拍板：每轮 ≤1、每小时 ≤1、每天不限**（雷达照旧每小时跑，但一小时只给主号一条，多了看不过来）· **2026-11-13 17:43 老板改口「其实限制可以去掉」→ `mention.per_hour` 归零（0 = 不限）**，`per_day` 本就 0；硬闸仍 = 「同一视频只发一条」。用 `radar.py rate` 看用量、改参数
 7. **发完自检**：自动用**匿名请求**回查这条评论可不可见（阿瓦隆拦了就记一行；别人看不到 = 没真发出去）
    - ⚠️ **visible_anon 只能当参考，不能当结论**（2026-10-27 实证）：① 新号/新登录态发首评有**审核延迟**（当时不可见、半小时后主号确认可见）；② 晚些时候连 15:00 那条「已确认可见」的评论本地回查也报 False → 说明该接口对匿名/排序已不可靠。**记「未验证」即可，绝不据此重发或判定被拦。**
 8. **评论区快筛（2026-10-27 轻量版）**：@ 分享前先跑 `comment-check --bv`（拉热评 top10 规则统计：数字昵称 / 昵称关键词「大肥鱼·肥鱼」/ AI 句式 / 同质文案）。疑似比例 ≥30% → **推送注明「⚠️ 评论区疑水军」或暂缓这次 @**，由本人定夺；不拦截、不误伤。
@@ -307,7 +307,7 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 ```markdown
 **值班 · 16:31 巡**（开门 16:31 → 收尾 16:37，6 分钟）
 节奏：上次收尾 15:27 + 4 分钟 → 16:31 醒（`plan.py next` 一次性闹钟）
-账：feed 9 条 · 读 2 条 · 跳过 7 条 · 点赞 2/2 · 评论 1/1 · @ 1/2（分母 = 每小时安全阀）
+账：feed 9 条 · 读 2 条 · 跳过 7 条 · 点赞 2 · 评论 1 · @ 1（11-13 17:43 起没有每小时上限，报实数）
 下一次醒点：16:42
 
 | BV | 标题（时长 / 播放） | 点赞 | 评论 | @ |

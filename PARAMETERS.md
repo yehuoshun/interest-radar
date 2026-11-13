@@ -49,7 +49,7 @@
 | `enabled` | true | 维护者/自动关闸 | 热加载 · 闸① | ✅ 接线（comment.py:49） |
 | `name` / `mid` | 主号 | 维护者 | 热加载 · 闸① / notify | ✅ 接线（comment.py:48、notify.py:82） |
 | `per_round` | 2 | 维护者 | —— | ⚠️ 漂移：**代码闸没读它**（comment.py:63-74 只读 per_hour/per_day），改它不生效；11-13 与 `per_hour` 一起从 1 放到 2，只为文档口径一致 |
-| `per_hour` | 2 | 维护者 | 热加载 · 闸⑥ | ✅ 接线（comment.py:63）——**实际生效项**；11-13 老板「一晚上只艾特我一次啊」后 1→2（`chg-20261113-120250-b0414b`），配合 prompt 层「整夜 ≤4」 |
+| `per_hour` | 0 | 维护者 | 热加载 · 闸⑥ | ✅ 接线（comment.py:64）——**实际生效项**；11-13 12:02 由 1→2（`chg-20261113-120250-b0414b`），同日 17:43 老板「其实限制可以去掉」→ **2→0（0 = 不限）**（`chg-20261113-174410-8d86d1`） |
 | `per_day` | 0 | 维护者 | 热加载 · 闸⑥ | ✅ 接线（comment.py:64） |
 | `min_score` | 0 | 维护者 | —— | 💤 死配置：全代码+tests 零引用；**11-13 老板「不要设定阈值」→ 17→0（`chg-20261113-131457-3c5bcb`）**，两个分数闸（它和 `budget.min_total_score`）一起作废，判断交回模型 |
 | `template` | 兜底文案 | 维护者 | —— | 💤 死配置：comment.py:80 用硬编码兜底「@{name} 这个值得看一眼」，template 从不被读 |
@@ -78,8 +78,8 @@
 | `write.cooldown_sec` | 120 | comment.py:99/269、dynamic.py:41、notify.py:51 |
 | `write.dynamic.enabled / per_hour / per_day / forbid` | true / 0 / 3 / 词表 | dynamic.py:27、gates.py:79 |
 | `write.message.enabled / per_hour / per_day / allow_mid / forbid` | true / 0 / 5 / [主号] / 词表 | gates.py:79、notify.py（白名单硬闸） |
-| `write.comment.enabled / per_hour / per_day / same_video_once / forbid` | true / 1 / 0 / true / 词表 | gates.py:79、comment.py（per_hour 11-13 由 3 收到 1：防封号安全阀） |
-| `write.like.enabled / per_hour / per_day / same_video_once / forbid` | true / 2 / 0 / true / 词表 | gates.py:79、like.py（per_hour 11-13 由 6 收到 2：防封号安全阀，不是内容标准） |
+| `write.comment.enabled / per_hour / per_day / same_video_once / forbid` | true / 0 / 0 / true / 词表 | gates.py:146、comment.py（per_hour 11-13 由 3 收到 1、17:43 再归零 = 不限：老板「其实限制可以去掉」） |
+| `write.like.enabled / per_hour / per_day / same_video_once / forbid` | true / 0 / 0 / true / 词表 | gates.py:146、like.py（per_hour 11-13 由 6 收到 2、17:43 再归零 = 不限：老板「其实限制可以去掉」） |
 | 动态/私信 ≤200 字、评论 ≤200 字 | —— | 代码常量 🔒 |
 
 ## D 组 · 陌生人草稿审批 — config `draft`（全部 ✅）
@@ -131,7 +131,7 @@
 | 3 | 💤 卫生 | `budget.*` 三键一度全零引用 —— **目前已处置 2/3（B2）**：`max_subtitles_per_round` 已删；`min_total_score` 已接线为 `comment --score` 硬闸；剩 `max_push_per_round`（=1 vs SKILL.md 0-3）随 #2 一起裁 | 曾误导维护者；现 #2 待裁期间该键改写无效 |
 | 4 | 💤 卫生 | `mention.min_score=17` 幽灵值：SKILL.md 只写「≥ min_score」不写数值，**没有任何执行者知道 17** | @ 阈值实际退化到 14 |
 | 5 | 💤 卫生 | `mention.template` 死配置（fallback 硬编码） | 改模板不生效 |
-| 6 | ⚠️ 语义 | `mention.per_round` 未入代码闸（真正生效的是 per_hour） | 改 per_round 无效；当前靠 per_hour=1 碰巧兜住 |
+| 6 | ⚠️ 语义 | `mention.per_round` 未入代码闸（真正生效的是 per_hour） | 改 per_round 无效；11-13 17:43 起 `per_hour=0`，@ 已不再有条数上限，只剩写冷却 + 同一视频一次 |
 
 **处置进度（B1/B2 + 口径裁决已执行部分，2026-11-02）**
 - ✅ **B2 已做**：`max_subtitles_per_round` 键已删（config+模板）；`min_total_score` 接线为 `comment --score` 硬闸（低于它 code 拒发，exit 14）；verify-params 文案同步
