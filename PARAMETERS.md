@@ -94,7 +94,7 @@
 
 | 参数 | 运行值 | 生效方式 | 状态 |
 |---|---|---|---|
-| `schedule.mode` / `rrule` | night / `FREQ=DAILY;BYHOUR=0,1,2,3,4,5,22,23;BYMINUTE=43`（夜班保安 22:00–05:00 每小时一巡）；另有 all / valley / 间隔模式 `every<N>m` | 外部定时（DSH `schedule_create`，rrule 由 `schedule.py` 生成），**radar 代码不读** | ✅ 接线（外部） |
+| `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0,1,…,23;BYMINUTE=43`（**24 小时值班**，11-13 老板「白天也继续吧，改成24小时」；此前是 night = 22:00–05:00 每小时一巡）；另有 valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
 | 触发不落整点 | `BYMINUTE=17` | `schedule.py --minute`（DSH rrule 无 stagger，用分钟偏移等效） | ✅ 接线（外部） |
 | 跑一轮的间隔（分钟） | 10 | `schedule.py --every-minutes`（`FREQ=MINUTELY;INTERVAL=N`，无 BY 部件） | ✅ 接线（外部） |
 | 谷时口径（valley） | 工作日 9-12/14-18 高峰 | 📐 注释口径 | 📐 |
