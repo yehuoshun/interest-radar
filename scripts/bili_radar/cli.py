@@ -96,6 +96,8 @@ def build_parser():
                    help="标成串内歇息（jitter-log 的 kind=rest，不算巡更间隔）")
     s.add_argument("--close", action="store_true",
                    help="收尾打卡：只记一笔 kind=close（下一巡的间隔从这一刻算），不等待")
+    s.add_argument("--watch", dest="watch", type=int, default=0, metavar="SEC",
+                   help="看片计时：这条视频的秒数（6:54 → 414），记 kind=watch；配 --sleep 真花掉这段时间")
     s.add_argument("--sleep", action="store_true", help="真的睡这么久（不加只打印会等多久）")
     s.set_defaults(fn=cmd_jitter)
 

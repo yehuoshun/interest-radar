@@ -21,9 +21,10 @@ class TestJitter(unittest.TestCase):
         j.state_dir = lambda: self.dir
         self.addCleanup(lambda: setattr(j, "state_dir", self._orig))
 
-    def _args(self, max_min=12, sleep=False, min_min=0, rest=False, close=False):
+    def _args(self, max_min=12, sleep=False, min_min=0, rest=False, close=False,
+              watch=0):
         return types.SimpleNamespace(max_min=max_min, min_min=min_min, rest=rest,
-                                     close=close, sleep=sleep)
+                                     close=close, sleep=sleep, watch=watch)
 
     def _run(self, a):
         buf = io.StringIO()
@@ -92,6 +93,36 @@ class TestJitter(unittest.TestCase):
     def test_close_and_rest_mutually_exclusive(self):
         with self.assertRaises(SystemExit):
             self._run(self._args(rest=True, close=True))
+
+    def test_watch_logs_duration(self):
+        """看片计时：把这条视频的时长记成 kind=watch（11-13 17:07「视频时长 + 1–10 分钟」）。"""
+        t0 = time.time()
+        out = self._run(self._args(watch=414))
+        self.assertLess(time.time() - t0, 1.0)
+        self.assertEqual(out["kind"], "watch")
+        self.assertEqual(out["dur_sec"], 414)
+        self.assertEqual(out["dur_human"], "6:54")
+        self.assertFalse(out["slept"])
+        row = self._rows()[0]
+        self.assertEqual(row["kind"], "watch")
+        self.assertEqual(row["dur_sec"], 414)
+
+    def test_watch_rejects_out_of_range(self):
+        for bad in (-5, j.MAX_WATCH_SEC + 1):
+            with self.assertRaises(SystemExit):
+                self._run(self._args(watch=bad))
+
+    def test_watch_exclusive_with_close_and_rest(self):
+        with self.assertRaises(SystemExit):
+            self._run(self._args(watch=60, close=True))
+        with self.assertRaises(SystemExit):
+            self._run(self._args(watch=60, rest=True))
+
+    def test_fmt_watch(self):
+        self.assertEqual(j.fmt_watch(414), "6:54")
+        self.assertEqual(j.fmt_watch(1308), "21:48")
+        self.assertEqual(j.fmt_watch(59), "0:59")
+        self.assertEqual(j.fmt_watch(3661), "1:01:01")
 
 
 if __name__ == "__main__":
