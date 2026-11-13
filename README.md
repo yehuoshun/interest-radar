@@ -1,11 +1,11 @@
 # interest-radar ｜ 兴趣雷达
 
-> 每天替你扫一轮，**只挑真正值得占用你一次注意力的东西**。
-> 不是搜索机器人 —— 判据只有一句话：**这条值不值得占用你一次注意力？**
+> 24 小时值班，**一巡只挑一条真正值得占用你十分钟的东西**。
+> 不是搜索机器人 —— 判据只有一句话：**这条值不值得你花十分钟看？**
 
-一个 agent 技能（本机 DSH 直接可用，也能当纯 CLI 跑；2026-11-13 去掉了 OpenClaw 依赖）：读你的**兴趣档案** → 按兴趣线（主题 + 邻域）搜 → **读字幕原文**（不看摘要）→ 四维打分 → 判重 → 写日报 → **只把够格的 0-3 条推给你**。
+一个 agent 技能（本机 DSH 直接可用，也能当纯 CLI 跑；2026-11-13 去掉 OpenClaw 依赖）：**刷 B站首页推荐流 → 一巡挑一条真读字幕 → 觉得值就点赞/评论，觉得值得你看就 @ 主号 → 收尾，按「视频时长 + 1–10 分钟」定下一次醒点**。
 
-> 用法：**给 agent 看的操作手册在 [`SKILL.md`](SKILL.md)**（命令速查、一轮流程、报告格式）；**判据与红线在 [`templates/charter.md`](templates/charter.md)**（四维打分、阈值、字幕预算口径）。**参数地图在 [`PARAMETERS.md`](PARAMETERS.md)**（2026-11-02 新增：全参数接线审计——归谁管、怎么生效、漂移/死配置清单）。本 README 只讲它是什么、为什么这么设计。
+> 用法：**给 agent 看的操作手册在 [`SKILL.md`](SKILL.md)**（命令速查、值班流程、报告格式）；**判据与红线在 [`templates/charter.md`](templates/charter.md)**（一巡一条、已赞跳过、不设阈值/配额）。**参数地图在 [`PARAMETERS.md`](PARAMETERS.md)**（全参数接线审计——归谁管、怎么生效、漂移/死配置清单）。本 README 只讲它是什么、为什么这么设计。
 
 ## 它和"关键词雷达"的区别
 
@@ -21,10 +21,10 @@
 |---|---|
 | **档案一开始是空的** | 脏种子比空种子贵：拿别人的收藏/历史数据当兴趣，只会把噪音训成口味 |
 | **宁缺勿滥，一天 0 条是合法输出** | 假阳性是在偷你的注意力，比漏一条贵得多 |
-| **写操作分档** | 读：无门槛；写：每档都有代码闸（开关 + `--yes` + 敏感词 + 频控 + 白名单）。只 @ 主号、只私信白名单；**自发评论 2026-10-27 老板放权**（不强制 @，小时 ≤3、天不限） |
-| **只推 0-3 条** | 推的是注意力预算，不是信息量 |
-| **字幕预算（每轮不限，2026-10-27 老板拍板）** | 原为防 token 烧穿设 3 条/轮；老板取消（账号交 AI 运营），粗筛仍保留省 token，但不再卡条数 |
-| **判断归模型，算术归脚本** | 打分是判断，判重/权重/阈值是算术 —— 后者别让模型心算 |
+| **写操作分档** | 读：无门槛；写：每档都有代码闸（开关 + `--yes` + 敏感词 + 频控 + 白名单）。只 @ 主号、只私信白名单；**自发评论 2026-10-27 老板放权**（不强制 @；11-13 17:43 频控归零 = 不限，只剩冷却 60 秒与同一视频一次） |
+| **不设条数配额** | 判断的是内容，不是钟点；一巡 0 互动合法，不为产量凑数 |
+| **一巡一条、把时长花掉** | 视频时长 + 1–10 分钟是节奏；一轮读两条会把节奏压平（11-13 19:54 老板） |
+| **判断归模型，算术归脚本** | 点赞/评论/@ 是判断，判重/权重/冷却/频控是算术 —— 后者别让模型心算 |
 
 ## 实测状态（截至 2026-10-27 · commit e028c07）
 
@@ -40,11 +40,11 @@
 | 抽帧看画面 | `scripts/frames.py` | ✅ 实测 | 稀疏下载，抽帧结果与全片 md5 一致 |
 | @我 / 回复我 | `notify` | ✅ 实测 | 水位线存 `notify-state.json` |
 | 私信读取 | `dm` | ✅ 实测 | 只读不回，水位线存 `dm-state.json` |
-| 评论 @ 主号 | `reply` | ✅ 实测 67 次 | `mention-log.jsonl`，最近 2026-10-27 18:03 |
+| 评论 @ 主号 | `reply` | ✅ 实测（11-13 仍在用） | `mention-log.jsonl` |
 | 发动态 | `dynamic` | ✅ 实测 2 次 | `write-log.jsonl`，2026-10-19 |
 | 删动态 | `dynamic-del` | ✅ 实测 1 次 | `write-log.jsonl`，2026-10-19 |
 | 私信发送 | `msg` | ✅ 实测 1 次 | `write-log.jsonl`，2026-10-19，只发白名单 |
-| 自发评论 | `comment` | ⚠️ 已放开、**零真发记录** | 2026-10-27 老板放权（小时 ≤3），账本里还没有 `kind=comment` |
+| 自发评论 | `comment` | ✅ 实测（11-13 多条） | `write-log.jsonl`（kind=comment）；频控 0 = 不限 |
 | 陌生人提问草稿 | `draft` | ⚠️ 试点中 | 必须草稿 → 本人审批 → 才发 |
 | 活跃度评估 | `engagement` | ✅ 单测覆盖 | 纯统计，无外部依赖 |
 | 弹幕 / 置顶评论 / 关注取关 | — | ❌ 不提供 | 有意不做 |
@@ -54,7 +54,7 @@
 ## 测试
 
 ```bash
-cd scripts && python -m unittest discover -s tests -v   # 150 用例 / 零网络 / 零 cookie / <1s
+cd scripts && python -m unittest discover -s tests -v   # 160 用例 / 零网络 / 零 cookie / <1s
 ```
 
 GitHub Actions 在 push 与 PR 上跑同一套：`.github/workflows/ci.yml`（语法检查 + 单测 + CLI 冒烟）。
@@ -81,7 +81,7 @@ python scripts/radar.py search --kw "关键词" --days 7
 ## 调度：固定间隔 / all / 梁文谷
 
 ```bash
-python scripts/schedule.py --every-minutes 10  # 固定间隔：每 10 分钟一轮（本机当前用这个）
+python scripts/schedule.py --every-minutes 10  # 备份写法；当前用 plan.py next 的一次性闹钟
 python scripts/schedule.py valley              # 打印谷时模式的 DTSTART+RRULE 与 prompt
 python scripts/schedule.py all --rrule-only    # 全天每小时，只要 rrule
 python scripts/schedule.py all --minute 0      # 整点排班（备用；当前醒点由 plan.py next 按「上一次 + 1–10 分钟」自己定）
@@ -105,8 +105,8 @@ R=scripts/radar.py
 python $R check                                     # cookie 是否有效
 python $R search --kw "关键词" --num 20 --days 7    # 搜（order: pubdate|click|totalrank）
 python $R sub BV1xxxxxxxxx                          # 字幕全文；无字幕打印 NO_SUBTITLE
-python $R seen check BV1xxx                         # SEEN / NEW
-python $R seen add 2026-10-15 BV1xxx keep 标题       # 记判重
+python $R liked --bv BV1xxx                         # 平台侧「我赞过没有」（已赞 → 跳过）
+python $R feed --num 12 --rounds 1                  # 首页推荐流，一巡挑一条
 python $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python $R stats                                     # 权重汇总 + 已看条数
 python $R reply --bv BV1xxx [--text "@昵称 …"]        # 评论 @ 主号（默认干跑，--yes 真发）
@@ -125,11 +125,11 @@ python $R msg --mid 239028467 --text "…" [--yes]     # 私信（只准发 allo
 SKILL.md              技能说明书（给 agent 看的操作手册）
 AGENT.md              代码图谱：模块 / 符号 / 接线 / 键名（改代码前看）
 PARAMETERS.md         参数地图：全参数接线审计、漂移与死配置
-scripts/radar.py      CLI 入口：取数 / 判重 / 记反馈 / 权重
+scripts/radar.py      CLI 入口：取数 / 已赞 / 记反馈 / 权重
 scripts/init.py       初始化 state/（拷模板 + 默认 config.json）
 scripts/schedule.py   调度：打印 rrule + prompt 给 DSH（all / valley / --every-minutes）
 scripts/bili_radar/   实现（core / client / gates + 各域模块）
-scripts/tests/        150 用例（unittest，零网络）
+scripts/tests/        160 用例（unittest，零网络）
 state/                运行态（gitignore）：profile / charter / config / out / frames
 templates/            profile.md、charter.md、schedule-prompt.md
 ```
