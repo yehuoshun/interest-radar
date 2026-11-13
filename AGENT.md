@@ -3,7 +3,7 @@
 > **用途**：给 agent / 开发者用的**定位地图**。要改某个功能，先在这里查到「文件 → 函数 → 行号」，
 > 不要全仓 grep。人读的说明书在 [`SKILL.md`](SKILL.md)，判据红线在 [`templates/charter.md`](templates/charter.md)，本文件只讲**代码在哪**。
 >
-> 快照：2026-10-27（HEAD `c5dd984`）。行号会漂，**改代码请顺手更新本文件**。
+> 快照：2026-11-13（HEAD `c3432bd`）。行号会漂，**改代码请顺手更新本文件**。
 
 ---
 
@@ -164,7 +164,7 @@ graph TD
 | `draft` | `enabled` `per_12h` `per_24h` `reply_interval_days` `forbid` | `draft.py:61-148` | 草稿开关 / 频控 / 同人 30 天 / 敏感词 |
 | `write.<kind>` | `enabled` `per_hour` `per_day` `forbid` `allow_mid` `same_video_once` | `gates.py:79`；`comment.py:257-268`；`dynamic.py:27`；`notify.py:82` | 写操作闸（kind = `comment`/`dynamic`/`message`） |
 | `write` | `cooldown_sec` | `comment.py:98` `:268`、`draft.py:164`、`dynamic.py:41`、`notify.py:51` | 写冷却秒数（默认 120） |
-| `budget` | `max_subtitles_per_round` `max_push_per_round` `min_total_score` | **代码不读** | 只在 SKILL/charter 层由模型遵守（2026-10-27 已放开为 0=不限） |
+| `budget` | `max_push_per_round` `min_total_score` | `comment.py`（`floor = 14 if raw is None else int(raw)`；`floor > 0` 才卡分） | `min_total_score` 2026-11-02 起是 `comment --score` 硬闸；**11-13 老板「不要设定阈值」→ 置 0 = 不卡分**（0 不再被旧写法的 `or 14` 吞回）。`max_push_per_round` 代码不读，只在 SKILL/charter 层遵守 |
 | `schedule` | `mode` `rrule` | 由 `schedule.py` 写 | 记录，供报告引用；DSH 用 `schedule_create` 建任务 |
 
 ---
