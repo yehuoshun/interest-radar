@@ -88,7 +88,7 @@ def build_parser():
     s.set_defaults(fn=cmd_like)
 
     s = sub.add_parser("jitter")
-    s.add_argument("--max-min", dest="max_min", type=int, default=12,
+    s.add_argument("--max-min", dest="max_min", type=int, default=10,
                    help="最多抖几分钟（默认 12；三角分布，多数时候接近 0）")
     s.add_argument("--sleep", action="store_true", help="真的睡这么久（不加只打印会等多久）")
     s.set_defaults(fn=cmd_jitter)

@@ -59,6 +59,29 @@ class TestDailyRrule(unittest.TestCase):
         self.assertIn("BYMINUTE=43", r)
 
 
+class TestOnsiteTrigger(unittest.TestCase):
+    """11-13 口径：rrule 定在整点，开门时间交给 jitter 0–10 分钟。"""
+
+    def test_minute_zero_hits_onsite(self):
+        r = sched.build_rrule("all", 0)
+        self.assertIn("BYMINUTE=0", r)
+        stamp = r.splitlines()[0].split(":")[-1]
+        from datetime import datetime
+        start = datetime.strptime(stamp, "%Y%m%dT%H%M%S")
+        self.assertEqual((start.minute, start.second), (0, 0))
+        self.assertGreater(start, datetime.now(sched.TZ).replace(tzinfo=None))
+
+    def test_jitter_default_is_ten_minutes(self):
+        from bili_radar import jitter as j
+        from bili_radar.cli import build_parser
+
+        self.assertEqual(j.MAX_MIN, 60)          # 库层硬上限
+        self.assertLessEqual(j.pick_delay(10), 600)
+        # CLI 默认就是老板口径的 10 分钟
+        ns = build_parser().parse_args(["jitter"])
+        self.assertEqual(ns.max_min, 10)
+
+
 class TestRandomMinute(unittest.TestCase):
     """随机拨钟：分钟在范围内、下一次触发至少留出提前量。"""
 

@@ -66,8 +66,7 @@ python $R engagement [--days N]                    # 活跃度评估：老板反
 python $R reply --bv BV1xxx                        # **@ 主号 只走这个**（默认干跑；查 mention 频控 + 同一视频只发一次）
 python $R feed --num 12 --rounds 2                 # 刷首页推荐流（让算法决定看什么，不按关键词挖）
 python $R like --bv BV1xxx --yes                   # 点赞（--cancel 取消；同一视频只点一次）
-python $R jitter --max-min 12 --sleep              # 巡更前抖一下（0–12 分钟，别每次都准点）
-python scripts/schedule.py all --random-minute --rrule-only   # 再掷一个随机开巡分钟（拨钟）
+python $R jitter --max-min 10 --sleep              # 巡更前抖一下（0–10 分钟，别每次都准点）
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
@@ -90,11 +89,9 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 **作息**：24 小时值班（11-13 老板「白天也继续吧，改成24小时」）—— 全天每小时巡一次（`BYMINUTE=43`），白天轻、夜里重；一巡 15 分钟内收尾，多数时候只是看，0 互动是正常结果；@ 老板白天 ≤1 条/巡（一天 ≤2）、夜里 ≤2 条/巡（整夜 ≤4）（11-13 老板「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
 一巡写操作上限：赞 ≤2、评论 ≤1、@ ≤2；整夜 @ ≤4（11-13 老板「一晚上只艾特我一次啊」后从 1/夜放开，见 `chg-20261113-120250-b0414b`）。
 
-**抖动分两层**（11-13 老板「随机抖动呢？固定时间也太机械了吧」）：
-1. **拨钟**：`schedule.py all --random-minute` 每次掷一个随机分钟（2–58），把 rrule 的下一次触发挪到别的分钟——DSH 的 rrule 本身没有随机能力，随机只能落在「分钟」这个参数上，所以每巡开头重拨一次。它还会给下一次留 `RANDOM_LEAD_MINUTES=25` 分钟提前量，免得刚巡完又被拨回本小时。
-2. **抖动**：再 `radar.py jitter --max-min 12 --sleep`——随机等 0–12 分钟（三角分布，多数很准点、偶尔拖十几分钟），实际等待记在 `state/jitter-log.jsonl`。
+**抖动**：rrule 定在**整点**（`BYMINUTE=0`），开门时间靠 `radar.py jitter --max-min 10 --sleep` 随机往后推 0–10 分钟（三角分布，多数很快、偶尔接近 10 分钟），实际等待记在 `state/jitter-log.jsonl`。「整点睡醒、先发会儿呆再干活」—— 11-13 老板定的口径。
 
-两层加起来，开门时间每小时都不同，也不会永远落在同一个分钟。别自己决定要不要等/拨到几分，也别改成固定值。
+（备选：`schedule.py --random-minute` 能每巡重掷一个随机分钟、把触发本身挪开整点，代码和单测都留着，但当前口径不用。）
 
 老板原话：「像正常人一样刷 B 站；遇到喜欢的点赞，评论（有问题可以评论），遇到觉得我感兴趣的可以艾特我，一般我回复你
 就代表我感兴趣，你就可以按照建画像了。你自己刷没必要按照雷达，纯给你自己学习。」
@@ -150,7 +147,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 触发时刻随机化（2026-10-27）
 
-雷达**不跑整点**：`scripts/schedule.py` 的 `--minute` 默认 17（`BYMINUTE=17`），要更不像机器就加 `--random-minute` 每巡重掷一次分钟（2–58），等效原来 `staggerMs` 想做的事。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
+雷达**整点触发**：`scripts/schedule.py --minute 0`（`BYMINUTE=0`），整点只是闹钟，真正开门由 jitter 0–10 分钟决定（11-13 老板口径）。要更不像机器也可以改回 `--random-minute` 每巡重掷分钟。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
 
 ## cookie 失效自救（扫码登录，2026-10-27 起）
 
@@ -312,12 +309,13 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 ```bash
 python scripts/schedule.py valley        # 打印谷时模式的 rrule + prompt，并记进 state/config.json
 python scripts/schedule.py all           # 全天每小时
-python scripts/schedule.py night --minute 43    # 夜班保安：22:00–05:00 每小时巡一次（白天不排班）
-# 每次触发后先 `radar.py jitter --max-min 12 --sleep` 抖一下：rrule 是死的，抖动在运行时做
+python scripts/schedule.py night --minute 0     # 夜班保安：22:00–05:00 每小时巡一次（白天不排班）
+# 每次触发后先 `radar.py jitter --max-min 10 --sleep` 抖一下：rrule 是死的，抖动在运行时做
 python scripts/schedule.py --every-minutes 10   # 固定间隔：每 10 分钟一轮
 python scripts/schedule.py --rrule-only  # 只要 rrule
 python scripts/schedule.py valley --minute 43   # 换个分钟偏移（默认 17，避开整点）
-python scripts/schedule.py all --random-minute  # 随机分钟：每巡重掷一次，下次触发至少 +25 分钟
+python scripts/schedule.py all --minute 0       # 整点触发（当前口径：整点 + 0–10 分钟抖动）
+python scripts/schedule.py all --random-minute  # 备选：随机分钟，每巡重掷，下次触发至少 +25 分钟
 ```
 
 - **all**：全天每小时（`RRULE:FREQ=DAILY;BYHOUR=0,…,23;BYMINUTE=17`）

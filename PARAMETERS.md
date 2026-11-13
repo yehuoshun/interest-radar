@@ -95,9 +95,9 @@
 | 参数 | 运行值 | 生效方式 | 状态 |
 |---|---|---|---|
 | `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0,1,…,23;BYMINUTE=43`（**24 小时值班**，11-13 老板「白天也继续吧，改成24小时」；此前是 night = 22:00–05:00 每小时一巡）；另有 valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
-| 触发不落整点 | `BYMINUTE=17` | `schedule.py --minute`（DSH rrule 无 stagger，用分钟偏移等效） | ✅ 接线（外部） |
-| 开巡分钟随机 | 2–58，每巡重掷 | `schedule.py --random-minute`（`pick_minute()`；DSH rrule 无随机，每巡拨一次钟） | ✅ 接线（外部） |
-| 拨钟后最少提前量 | 25 分钟 | `schedule.py` 的 `RANDOM_LEAD_MINUTES`（防止拨回本小时、自己撞自己） | ✅ 接线（外部） |
+| 触发时刻 | 整点 `BYMINUTE=0` | `schedule.py --minute 0`（11-13 老板口径：整点只是闹钟） | ✅ 接线（外部） |
+| 整点后抖动 | 0–10 分钟 | `radar.py jitter --max-min 10`（三角分布，峰值 0） | ✅ 接线（外部） |
+| 随机分钟（备选） | 2–58，每巡重掷 | `schedule.py --random-minute`（`pick_minute()`；当前口径不用，代码保留） | ⚪ 未启用 |
 | 跑一轮的间隔（分钟） | 10 | `schedule.py --every-minutes`（`FREQ=MINUTELY;INTERVAL=N`，无 BY 部件） | ✅ 接线（外部） |
 | 谷时口径（valley） | 工作日 9-12/14-18 高峰 | 📐 注释口径 | 📐 |
 
