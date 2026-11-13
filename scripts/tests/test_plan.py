@@ -75,6 +75,27 @@ class TestPlan(unittest.TestCase):
         self.assertTrue(out["allowed"])
         self.assertEqual(out["since_last_min"], p.GAP_MIN + 20)
 
+    def test_close_rows_feed_gate(self):
+        """收尾打卡也算锚点：看了半小时才关掉，间隔从关掉那刻算，不按开门时间倒推。"""
+        now = datetime(2026, 11, 13, 14, 3, tzinfo=p.TZ)
+        self._log(now - timedelta(minutes=63))          # 13:00 开门
+        self._emit(now - timedelta(minutes=23), "close")  # 13:40 收尾
+        out = p.gate(now)
+        self.assertFalse(out["allowed"])
+        self.assertEqual(out["since_last_min"], 23)
+
+    def test_close_rows_feed_gate(self):
+        """收尾打卡才是巡更间隔的起点：看了半小时才关掉，间隔从关掉那刻算。"""
+        now = datetime(2026, 11, 13, 14, 3, tzinfo=p.TZ)
+        self._log(now - timedelta(minutes=63))          # 13:00 开门，早过 50 分钟
+        row = {"ts": (now - timedelta(minutes=23)).strftime("%Y-%m-%dT%H:%M:%S"),
+               "delay_sec": 0, "kind": "close", "slept": False}
+        with (self.dir / p.LOG_NAME).open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        out = p.gate(now)
+        self.assertFalse(out["allowed"])
+        self.assertEqual(out["since_last_min"], 23)
+
     def test_rrule_has_planned_hours(self):
         r = p.rrule(datetime(2026, 11, 13, 14, 3, tzinfo=p.TZ))
         self.assertIn("BYMINUTE=0", r)

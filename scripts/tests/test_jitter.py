@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""test_jitter.py —— 抖动/歇息（分布范围 / 干跑不睡 / 越界拒绝 / 落账本 / kind）。"""
+"""test_jitter.py —— 抖动/歇息/收尾（分布范围 / 干跑不睡 / 越界拒绝 / 落账本 / kind）。"""
 import io
 import json
 import pathlib
@@ -21,8 +21,9 @@ class TestJitter(unittest.TestCase):
         j.state_dir = lambda: self.dir
         self.addCleanup(lambda: setattr(j, "state_dir", self._orig))
 
-    def _args(self, max_min=12, sleep=False, min_min=0, rest=False):
-        return types.SimpleNamespace(max_min=max_min, min_min=min_min, rest=rest, sleep=sleep)
+    def _args(self, max_min=12, sleep=False, min_min=0, rest=False, close=False):
+        return types.SimpleNamespace(max_min=max_min, min_min=min_min, rest=rest,
+                                     close=close, sleep=sleep)
 
     def _run(self, a):
         buf = io.StringIO()
@@ -75,6 +76,22 @@ class TestJitter(unittest.TestCase):
     def test_min_greater_than_max_rejected(self):
         with self.assertRaises(SystemExit):
             self._run(self._args(max_min=3, min_min=9))
+
+    def test_close_logs_without_waiting(self):
+        """收尾打卡：不等待、只落一行 kind=close，给下一巡的间隔当锚点。"""
+        t0 = time.time()
+        out = self._run(self._args(close=True))
+        self.assertLess(time.time() - t0, 0.5)
+        self.assertEqual(out["kind"], "close")
+        self.assertEqual(out["delay_sec"], 0)
+        self.assertFalse(out["slept"])
+        row = self._rows()[0]
+        self.assertEqual(row["kind"], "close")
+        self.assertEqual(row["delay_sec"], 0)
+
+    def test_close_and_rest_mutually_exclusive(self):
+        with self.assertRaises(SystemExit):
+            self._run(self._args(rest=True, close=True))
 
 
 if __name__ == "__main__":

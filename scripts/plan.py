@@ -38,9 +38,11 @@ def next_hour(now=None) -> datetime:
 
 
 def last_scan() -> datetime:
-    """上一次真开门的时间：`state/jitter-log.jsonl` 里最后一条 `kind=open`。
+    """上一巡的锚点：`state/jitter-log.jsonl` 里最后一条 `open` 或 `close`。
 
-    串内歇息（`kind=rest`）不算 —— 那是「看完一条歇 1–10 分钟」，不该喂饱巡更护栏。
+    - `rest`（串内歇息）跳过 —— 那是「看完一条歇 1–10 分钟」，不该喂饱巡更护栏。
+    - `close`（一串收尾）算 —— 我看了半小时才关掉，那半小时也算刷过了，
+      间隔要从离开 B 站那一刻开始算，不能从开门时间倒推。
     老记录没有 `kind` 字段，一律当 open。
     """
     f = state_dir() / LOG_NAME

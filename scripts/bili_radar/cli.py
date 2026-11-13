@@ -94,6 +94,8 @@ def build_parser():
                    help="最少等几分钟（默认 0；串内歇息用 --min-min 1 --max-min 10 --rest）")
     s.add_argument("--rest", action="store_true",
                    help="标成串内歇息（jitter-log 的 kind=rest，不算巡更间隔）")
+    s.add_argument("--close", action="store_true",
+                   help="收尾打卡：只记一笔 kind=close（下一巡的间隔从这一刻算），不等待")
     s.add_argument("--sleep", action="store_true", help="真的睡这么久（不加只打印会等多久）")
     s.set_defaults(fn=cmd_jitter)
 
