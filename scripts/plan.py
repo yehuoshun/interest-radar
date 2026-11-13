@@ -21,6 +21,8 @@ TZ = timezone(timedelta(hours=8))
 
 HOURS = list(range(24))
 GAP_MIN = 50
+GAP_MAX_MIN = 120
+GAP_MODE_MIN = 60
 LOG_NAME = "jitter-log.jsonl"
 
 
@@ -86,6 +88,33 @@ def gate(now=None) -> dict:
     }
 
 
+def pick_gap_min(rng=None) -> int:
+    """下一次醒来的间隔（分钟）：50–120，多数落在 60 上下（三角分布）。
+
+    人不是「整点报到」：这次看完可能一小时后才想起来，也可能一个半小时。
+    所以间隔自己掷，掷完写成下一次的闹钟 —— 醒点由上一次收尾时间推出来，不贴整点。
+    """
+    import random
+    rng = rng or random
+    return int(round(rng.triangular(GAP_MIN, GAP_MAX_MIN, GAP_MODE_MIN)))
+
+
+def next_wake(now=None, rng=None) -> datetime:
+    """下一次该醒来的时刻 = 上一巡锚点（开门或收尾）+ 随机间隔。"""
+    now = now or datetime.now(TZ)
+    base = last_scan() or now
+    wake = (base + timedelta(minutes=pick_gap_min(rng))).replace(second=0, microsecond=0)
+    if wake <= now:
+        wake = (now + timedelta(minutes=1)).replace(second=0, microsecond=0)
+    return wake
+
+
+def wake_rrule(wake: datetime) -> str:
+    """一次性唤醒闹钟：`FREQ=DAILY;COUNT=1` 就是「只响这一次」。"""
+    return ("DTSTART;TZID=Asia/Shanghai:%s\nRRULE:FREQ=DAILY;COUNT=1"
+            % wake.strftime("%Y%m%dT%H%M%S"))
+
+
 def rrule(now=None) -> str:
     nxt = next_hour(now)
     byhour = ",".join(str(h) for h in hours())
@@ -95,7 +124,7 @@ def rrule(now=None) -> str:
 
 def describe() -> str:
     return ("全天每小时一巡（%d 巡/天，12:10「改成24小时」+ 14:02 选「2」）；"
-            "护栏：距上一巡 ≥%d 分钟才刷下一巡（不做内容打分）"
+            "护栏：距上一巡 ≥%d 分钟才刷下一巡（不做内容打分）；醒点由上一次收尾 + 50–120 分钟随机间隔推出来（plan.py next）"
             % (len(hours()), GAP_MIN))
 
 
@@ -105,10 +134,20 @@ def main():
     sub.add_parser("gate", help="这一巡该不该刷（JSON）")
     sub.add_parser("rrule", help="打印排班 rrule（喂给 schedule_create）")
     sub.add_parser("hours", help="打印排班整点")
+    sub.add_parser("next", help="算下一次醒点（锚点 + 随机间隔）并给一次性 rrule")
     a = ap.parse_args()
 
     if a.cmd == "gate":
         print(json.dumps(gate(), ensure_ascii=False, indent=2))
+    elif a.cmd == "next":
+        wake = next_wake()
+        base = last_scan()
+        print(json.dumps({
+            "wake_at": wake.isoformat(),
+            "from": base.isoformat() if base else None,
+            "gap_min": int((wake - base).total_seconds() // 60) if base else None,
+            "rrule": wake_rrule(wake),
+        }, ensure_ascii=False, indent=2))
     elif a.cmd == "rrule":
         print(rrule())
     else:
