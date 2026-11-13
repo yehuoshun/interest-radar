@@ -94,7 +94,7 @@
 
 | 参数 | 运行值 | 生效方式 | 状态 |
 |---|---|---|---|
-| `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0,1,…,23;BYMINUTE=43`（**24 小时值班**，11-13 老板「白天也继续吧，改成24小时」；此前是 night = 22:00–05:00 每小时一巡）；另有 valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
+| `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0,1,…,23;BYMINUTE=0`（**24 小时值班，整点触发 + 0–10 分钟抖动**，11-13 老板「白天也继续吧，改成24小时」；此前是 night = 22:00–05:00 每小时一巡）；另有 valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
 | 触发时刻 | 整点 `BYMINUTE=0` | `schedule.py --minute 0`（11-13 老板口径：整点只是闹钟） | ✅ 接线（外部） |
 | 整点后抖动 | 0–10 分钟 | `radar.py jitter --max-min 10`（三角分布，峰值 0） | ✅ 接线（外部） |
 | 随机分钟（备选） | 2–58，每巡重掷 | `schedule.py --random-minute`（`pick_minute()`；当前口径不用，代码保留） | ⚪ 未启用 |
