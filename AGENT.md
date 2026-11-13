@@ -55,7 +55,7 @@ graph TD
 
 ## 2. 模块地图
 
-`scripts/` 下（行数为 2026-11-13 快照）：
+`scripts/` 下（行数为 2026-11-14 快照；本次改动核对了 cli/browse/comment/like 的行号）：
 
 | 文件 | 行数 | 职责 | 关键符号（起始行） |
 |---|---|---|---|
@@ -68,9 +68,9 @@ graph TD
 | `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
 | `bili_radar/gates.py` | 144 | 写闸 | `note_failure:15` `write_log:33` `_write_cooldown:46` `_write_gate:73` `_write_fail:95` `_record_write:123` `mention_log:128` `_ago_h:141` |
-| `bili_radar/cli.py` | 230 | argparse 路由 + re-export | `build_parser:47`（`main:221` 只做 parse + dispatch；各 `add_parser` 见 3 节） |
-| `bili_radar/browse.py` | 187 | 浏览域（含首页推荐流 `cmd_feed`） | `cmd_check:15` `cmd_search:31` `cmd_feed:70` `fetch_subtitle_text:111` `cmd_sub:135` `cmd_seen:162` |
-| `bili_radar/comment.py` | 375 | 评论域（最大） | `post_reply:20` `cmd_reply:39` `cmd_rate:142` `fetch_hot_comments:185` `cmd_comment_check:199` `cmd_comment:249` `anon_get:332` `visible_anon:343` `cmd_check_reply:370` |
+| `bili_radar/cli.py` | 243 | argparse 路由 + re-export | `build_parser:48`（`main:234` 只做 parse + dispatch；各 `add_parser` 见 3 节） |
+| `bili_radar/browse.py` | 198 | 浏览域（含首页推荐流 `cmd_feed`、平台已赞查询 `cmd_liked`） | `cmd_check:15` `cmd_search:31` `cmd_feed:70` `cmd_liked:111` `fetch_subtitle_text:122` `cmd_sub:146` `cmd_seen:173` |
+| `bili_radar/comment.py` | 378 | 评论域（最大） | `post_reply:20` `cmd_reply:39` `cmd_rate:142` `fetch_hot_comments:185` `cmd_comment_check:199` `cmd_comment:249` `anon_get:335` `visible_anon:346` `cmd_check_reply:373` |
 | `bili_radar/draft.py` | 184 | 草稿审核状态机 | `drafts_file:19` `load_drafts:23` `save_drafts:38` `cmd_draft:44` |
 | `bili_radar/notify.py` | 198 | 通知 / 私信读写 | `cmd_msg:18` `cmd_dm:73` `cmd_notify:135` `radar_unread:198` |
 | `bili_radar/dynamic.py` | 77 | 动态发/删 | `cmd_dynamic:15` `cmd_dynamic_del:59` |
@@ -90,27 +90,30 @@ graph TD
 
 | 子命令 | cli.py 行 | 处理函数 | 实现在 |
 |---|---|---|---|
-| `check` | 44 | `cmd_check` | `browse.py:15` |
-| `search` | 46 | `cmd_search` | `browse.py:31` |
-| `sub` | 54 | `cmd_sub` | `browse.py:94` |
-| `seen` (check/add) | 66 | `cmd_seen` | `browse.py:162` |
-| `feed`（首页推荐流，只读） | 78 | `cmd_feed` | `browse.py:70` |
-| `like`（点赞/取消赞） | 84 | `cmd_like` | `like.py:23` |
-| `jitter`（巡更抖动 / 看片计时 / 串内歇息 / 收尾打卡） | 90 | `cmd_jitter` | `jitter.py:79`（`--watch <秒>` `--min-min` `--rest` `--close`） |
-| `reply`（@主号/楼中楼） | 64 | `cmd_reply` | `comment.py:37` |
-| `check-reply`（匿名可见性） | 71 | `cmd_check_reply` → `visible_anon` | `comment.py:345` |
-| `rate`（看/改频控） | 76 | `cmd_rate` | `comment.py:140` |
-| `comment-check`（水军快筛） | 102 | `cmd_comment_check` | `comment.py:184` |
-| `comment`（自发评论） | 107 | `cmd_comment` | `comment.py:234` |
-| `feedback` | 82 | `cmd_feedback` | `feedback.py:12` |
-| `stats` | 140 | `cmd_stats` | `feedback.py:43` |
-| `engagement`（活跃度） | 142 | `cmd_engagement` | `feedback.py:65` |
-| `draft` (new/list/approve/discard/stats) | 91 | `cmd_draft` | `draft.py:44` |
-| `dynamic`（发动态） | 113 | `cmd_dynamic` | `dynamic.py:15` |
-| `dynamic-del`（删动态） | 118 | `cmd_dynamic_del` | `dynamic.py:59` |
-| `msg`（发私信） | 123 | `cmd_msg` | `notify.py:18` |
-| `dm`（读私信） | 129 | `cmd_dm` | `notify.py:73` |
-| `notify`（@我/回复我） | 136 | `cmd_notify` | `notify.py:135` |
+| `check` | 53 | `cmd_check` | `browse.py:15` |
+| `search` | 55 | `cmd_search` | `browse.py:31` |
+| `sub` | 63 | `cmd_sub` | `browse.py:146` |
+| `seen` (check/add) | 68 | `cmd_seen` | `browse.py:173` |
+| `reply`（@主号/楼中楼） | 73 | `cmd_reply` | `comment.py:39` |
+| `feed`（首页推荐流，只读） | 80 | `cmd_feed` | `browse.py:70` |
+| `liked`（平台侧是否已赞，只读） | 85 | `cmd_liked` | `browse.py:111` |
+| `like`（点赞/取消赞） | 89 | `cmd_like` | `like.py:23` |
+| `jitter`（巡更抖动 / 看片计时 / 串内歇息 / 收尾打卡） | 95 | `cmd_jitter` | `jitter.py:79`（`--watch <秒>` `--min-min` `--rest` `--close`） |
+| `check-reply`（匿名可见性） | 109 | `cmd_check_reply` → `visible_anon` | `comment.py:373` |
+| `rate`（看/改频控） | 114 | `cmd_rate` | `comment.py:142` |
+| `feedback` | 120 | `cmd_feedback` | `feedback.py:12` |
+| `draft` (new/list/approve/discard/stats) | 129 | `cmd_draft` | `draft.py:44` |
+| `comment-check`（水军快筛） | 140 | `cmd_comment_check` | `comment.py:199` |
+| `comment`（自发评论） | 145 | `cmd_comment` | `comment.py:249` |
+| `dynamic`（发动态） | 152 | `cmd_dynamic` | `dynamic.py:15` |
+| `dynamic-del`（删动态） | 157 | `cmd_dynamic_del` | `dynamic.py:59` |
+| `msg`（发私信） | 162 | `cmd_msg` | `notify.py:18` |
+| `dm`（读私信） | 168 | `cmd_dm` | `notify.py:73` |
+| `notify`（@我/回复我） | 175 | `cmd_notify` | `notify.py:135` |
+| `stats` | 179 | `cmd_stats` | `feedback.py:43` |
+| `verify-params` | 181 | `cmd_verify_params` | `verify_params.py:214` |
+| `config` (set/restore/log/observe/propose/approve/reject/proposals) | 185 | `cmd_cfg_*` | `cfg_tool.py:137` |
+| `engagement`（活跃度） | 227 | `cmd_engagement` | `feedback.py:65` |
 
 独立入口（非 radar.py）：`python scripts/frames.py --bv ...` → `media/frames.py:main`。
 
@@ -127,14 +130,15 @@ graph TD
 | **连续失败自动关闸**（3 次 → 关 `write.<kind>.enabled` / `mention.enabled`） | `gates.py` `comment.py` | `_write_fail:95`；`note_failure:15`；调用点 `comment.py:102` `:281`、`dynamic.py:48`、`notify.py:64`、`draft.py:171` |
 | **写账本**（`write-log.jsonl` / `mention-log.jsonl`） | `gates.py` | `_record_write:123` `write_log:33` `mention_log:128` `_ago_h:141` |
 | **搜索**（wbi search/type，按天数/排序过滤） | `browse.py` | `cmd_search:31` |
-| **字幕读取**（`player/wbi/v2` → 字幕 CDN） | `browse.py` | `fetch_subtitle_text:70` |
-| **字幕可信度校验**（语速 3~15 字/秒、两次不一致则判不可信） | `browse.py` | `cmd_sub:94` |
-| **seen 判重** | `browse.py` | `cmd_seen:121` |
-| **@ 主号 / 楼中楼回复** | `comment.py` | `cmd_reply:37` |
-| **发评论原语**（POST `/x/v2/reply/add`） | `comment.py` | `post_reply:18`（`draft.py:114` 复用） |
-| **自发评论** | `comment.py` | `cmd_comment:234` |
-| **评论区水军快筛** | `comment.py` | `fetch_hot_comments:170` `cmd_comment_check:184` |
-| **匿名可见性自检**（阿瓦隆） | `comment.py` | `anon_get:307` `visible_anon:318` |
+| **字幕读取**（`player/wbi/v2` → 字幕 CDN） | `browse.py` | `fetch_subtitle_text:122` |
+| **字幕可信度校验**（语速 3~15 字/秒、两次不一致则判不可信） | `browse.py` | `cmd_sub:146` |
+| **seen 账本**（只做 @ 去重；巡更不读不写，已读看平台 `liked`） | `browse.py` | `cmd_seen:173` |
+| **平台已赞查询**（`archive/has/like`，已赞跳过） | `browse.py` | `cmd_liked:111` |
+| **@ 主号 / 楼中楼回复** | `comment.py` | `cmd_reply:39` |
+| **发评论原语**（POST `/x/v2/reply/add`） | `comment.py` | `post_reply:20`（`draft.py:114` 复用） |
+| **自发评论** | `comment.py` | `cmd_comment:249` |
+| **评论区水军快筛** | `comment.py` | `fetch_hot_comments:185` `cmd_comment_check:199` |
+| **匿名可见性自检**（阿瓦隆） | `comment.py` | `anon_get:335` `visible_anon:346` |
 | **陌生人草稿状态机**（pending→approved/discarded/expired/failed） | `draft.py` | `cmd_draft:44` `load_drafts:23` `save_drafts:38` |
 | **通知（@我 / 回复我）** | `notify.py` | `cmd_notify:135` `radar_unread:198` |
 | **私信读 + 时间水位** | `notify.py` | `cmd_dm:73` |
@@ -164,7 +168,7 @@ graph TD
 | `comment_check` | `num` `warn_ratio` `name_keywords` `ai_patterns` | `comment.py:190-194` | 水军快筛参数（`name_keywords` 也被 `draft.py:66` 用来拒水军昵称入稿） |
 | `draft` | `enabled` `per_12h` `per_24h` `reply_interval_days` `forbid` | `draft.py:61-148` | 草稿开关 / 频控 / 同人 30 天 / 敏感词 |
 | `write.<kind>` | `enabled` `per_hour` `per_day` `forbid` `allow_mid` `same_video_once` | `gates.py:79`；`comment.py:257-268`；`dynamic.py:27`；`notify.py:82` | 写操作闸（kind = `comment`/`dynamic`/`message`） |
-| `write` | `cooldown_sec` | `comment.py:98` `:268`、`draft.py:164`、`dynamic.py:41`、`notify.py:51` | 写冷却秒数（默认 120） |
+| `write` | `cooldown_sec` | `comment.py:98` `:268`、`draft.py:164`、`dynamic.py:41`、`notify.py:51` | 写冷却秒数（默认 60） |
 | `budget` | `max_push_per_round` `min_total_score` | `comment.py`（`floor = 14 if raw is None else int(raw)`；`floor > 0` 才卡分） | `min_total_score` 2026-11-02 起是 `comment --score` 硬闸；**11-13 老板「不要设定阈值」→ 置 0 = 不卡分**（0 不再被旧写法的 `or 14` 吞回）。`max_push_per_round` 代码不读，只在 SKILL/charter 层遵守 |
 | `schedule` | `mode` `rrule` | 由 `schedule.py` 写 | 记录，供报告引用；DSH 用 `schedule_create` 建任务 |
 
@@ -181,7 +185,7 @@ graph TD
 | `config.json` | 人 / `rate` / 失败自动关闸 | 运行配置（见 §5） |
 | `weights.json` | `feedback.cmd_feedback` | 主题权重 |
 | `evidence.jsonl` | `feedback.cmd_feedback` | 反馈证据 |
-| `seen.md` | `browse.cmd_seen`；`comment.cmd_reply` | 判重 + `mentioned` 记录 |
+| `seen.md` | `comment.cmd_reply` | @ 去重账本（`mentioned`/`replied`）；巡更不读不写，判断已读看 `browse.cmd_liked` |
 | `out/<YYYY-MM-DD>.md` | 模型 | 每日报告 |
 | `mention-log.jsonl` | `comment.cmd_reply` | @ 记录（频控/冷却靠它） |
 | `mention-fails.json` | `gates.note_failure` | @ 失败计数（≥3 关闸） |
@@ -204,12 +208,13 @@ graph TD
 |---|---|
 | `/x/web-interface/nav`（wbi keys / 登录校验） | `client.py:93`、`browse.py:16`、`notify.py:56` `:97`、`media/frames.py:74` |
 | `/x/web-interface/wbi/search/type`（搜索） | `browse.py:35` |
-| `/x/web-interface/view`（视频元信息 aid/cid） | `browse.py:96`、`comment.py:90` `:198` `:251`、`draft.py:124`、`media/frames.py:90` |
-| `/x/player/wbi/v2`（字幕，**必须签名**） | `browse.py:83`、`media/frames.py:120` |
+| `/x/web-interface/view`（视频元信息 aid/cid） | `browse.py:148`、`comment.py:91` `:211` `:297` `:352`、`draft.py:158`、`like.py:38`、`media/frames.py:90` |
+| `/x/web-interface/archive/has/like`（平台已赞查询） | `browse.py:118` |
+| `/x/player/wbi/v2`（字幕，**必须签名**） | `browse.py:131`、`media/frames.py:122` |
 | `/x/player/wbi/playurl`（抽帧直链） | `media/frames.py:103` |
-| `/x/v2/reply/add`（发评论/@/回复） | `comment.py:18`（`post_reply`）、`comment.py:271`（自发） |
-| `/x/v2/reply?sort=2`（热评） | `comment.py:172` |
-| `/x/v2/reply/wbi/main`（匿名读评论，验证可见性） | `comment.py:333` |
+| `/x/v2/reply/add`（发评论/@/回复） | `comment.py:20`（`post_reply`）、`comment.py:309`（自发） |
+| `/x/v2/reply?sort=2`（热评） | `comment.py:187` |
+| `/x/v2/reply/wbi/main`（匿名读评论，验证可见性） | `comment.py:359` |
 | `/x/msgfeed/at` `/x/msgfeed/reply` `/x/msgfeed/unread` | `notify.py:169-177` `:198` |
 | `/x/dynamic/feed/create/dyn`（发动态，**只吃 JSON body**） | `dynamic.py:60` |
 | `dynamic_svr/rm_dynamic`（删动态） | `dynamic.py:73` |
@@ -237,11 +242,12 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | `test_frames_plan.py` | `_SparsePlan` sample→offset 映射（stts/stsc 坑） | 5 例 |
 | `test_jitter.py` | 抖动范围 / 干跑不睡 / 越界拒绝 / 记账 / 歇息下限与 kind / min>max 拒绝 / 收尾打卡不等待 / rest 与 close 互斥 / 看片计时落 dur_sec / watch 越界拒绝 / watch 与 rest・close 互斥 / 时长格式化 | 12 例 |
 | `test_like.py` | 点赞闸（开关关 / 干跑不落账 / 赞过再赞 / `--cancel` 绕同一视频闸） | 4 例 |
+| `test_liked.py` | 平台已赞查询（true / false / parser） | 3 例 |
 | `test_plan.py` | 歇息区间 1–10 分钟 / 用 `randint` 掷 / `last_seen` 认 open・rest・close 三种记录 / `next_wake` = 上一条 + 1–10 / 不排过去的闹钟 / `wake_rrule` 一次性 / `gate` 只挡同一分钟 | 7 例 |
 | `test_schedule.py` | rrule 生成（DAILY+BY 部件 / MINUTELY 间隔无 BY / 随机分钟范围 / 拨钟提前量） | 10 例 |
 | `test_write_cooldown.py` | 写冷却（两账本取最新） | 5 例 |
 
-**规矩**：改核心闸逻辑（draft/engagement/冷却/退避）**必须跑一遍全绿**；新功能补测试。
+**规矩**：改核心闸逻辑（draft/engagement/冷却/退避）**必须跑一遍全绿**；新功能补测试。当前全量 **160 例**（`Ran 160 tests … OK`，2026-11-14）。
 
 ---
 
