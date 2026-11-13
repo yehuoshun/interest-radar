@@ -67,6 +67,7 @@ python $R reply --bv BV1xxx                        # **@ 主号 只走这个**�
 python $R feed --num 12 --rounds 2                 # 刷首页推荐流（让算法决定看什么，不按关键词挖）
 python $R like --bv BV1xxx --yes                   # 点赞（--cancel 取消；同一视频只点一次）
 python $R jitter --max-min 10 --sleep              # 巡更前抖一下（0–10 分钟，别每次都准点）
+python $R jitter --watch 414 --sleep               # 看片计时：这条 6:54 → 花掉 414 秒（kind=watch）
 python $R jitter --min-min 1 --max-min 10 --rest --sleep   # 看完一条歇 1–10 分钟（kind=rest，不占巡更间隔）
 python $R jitter --close                                 # 一串收尾打卡（kind=close；下一巡间隔从这一刻算）
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
@@ -88,10 +89,12 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 刷着玩模式（2026-11-13 老板改口径）
 
-**作息**：24 小时值班，**节奏只有一条**（11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」；「掷一个 50–120 分钟的随机间隔？你是不是又理解错了？」→ 50–120 是我拍错的，已经删了）：上一次观看结束 + 1–10 分钟 = 下一次观看开始。每次收尾后 `python scripts/plan.py next` 按这条算醒点，写一个**一次性**闹钟 `RRULE:FREQ=DAILY;COUNT=1` 回活任务 —— 醒点不贴整点；`gate` 只防同一分钟重复触发；白天轻、夜里重；一串连看到自然想走（不数条数、不设时长上限，视频长短自己决定），收尾 `radar.py jitter --close` 打一笔卡，多数时候只是看，0 互动是正常结果；@ 老板：白天 ≤1 条/巡（白天合计 ≤3，11-13 老板「白天可以@」后不再压着）、夜里 ≤2 条/巡（整夜 ≤4，11-13「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
+**作息**：24 小时值班，**节奏只有一条**（11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」；「掷一个 50–120 分钟的随机间隔？你是不是又理解错了？」→ 50–120 是我拍错的，已经删了）：视频时长 + 1–10 分钟 = 下一次观看开始（11-13 17:07 老板「是视频时长 + 一到十分钟。你这怎么变成了一到十分钟？」→ 看片先用 `radar.py jitter --watch <秒> --sleep` 把时长真的花掉，收尾打卡才落在「看完」之后）。每次收尾后 `python scripts/plan.py next` 按这条算醒点，写一个**一次性**闹钟 `RRULE:FREQ=DAILY;COUNT=1` 回活任务 —— 醒点不贴整点；`gate` 只防同一分钟重复触发；白天轻、夜里重；一串连看到自然想走（不数条数、不设时长上限，视频长短自己决定），收尾 `radar.py jitter --close` 打一笔卡，多数时候只是看，0 互动是正常结果；@ 老板：白天 ≤1 条/巡（白天合计 ≤3，11-13 老板「白天可以@」后不再压着）、夜里 ≤2 条/巡（整夜 ≤4，11-13「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
 一巡写操作上限：赞 ≤2、评论 ≤1、@ ≤2；整夜 @ ≤4（11-13 老板「一晚上只艾特我一次啊」后从 1/夜放开，见 `chg-20261113-120250-b0414b`）。
 
-**歇息**：看完一条视频再点下一条之前，`radar.py jitter --min-min 1 --max-min 10 --rest --sleep` 歇 1–10 分钟（均匀分布，11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」）；记 `kind=rest`。**收尾打卡**：`radar.py jitter --close` 记 `kind=close`；`plan.py` 认 open / rest / close 全部三种记录当「上一次还在 B 站」，因为节奏是连续的一条线，不分串内串外。开门前只过 `python scripts/plan.py gate`（只挡「同一分钟重复触发」），`allowed:false` 就跳过这一巡。
+**看片计时**：每看一条先 `radar.py jitter --watch <秒> --sleep`（6:54 → 414、16:20 → 980、21:48 → 1308），记 `kind=watch`；这是节奏里「视频时长」那一段，不记就等于没看片。
+
+**歇息**：看完一条视频再点下一条之前，`radar.py jitter --min-min 1 --max-min 10 --rest --sleep` 歇 1–10 分钟（均匀分布，11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」）；记 `kind=rest`。**收尾打卡**：`radar.py jitter --close` 记 `kind=close`；`plan.py` 认 open / watch / rest / close 全部记录当「上一次还在 B 站」，因为节奏是连续的一条线，不分串内串外。开门前只过 `python scripts/plan.py gate`（只挡「同一分钟重复触发」），`allowed:false` 就跳过这一巡。
 
 （备选：`schedule.py --random-minute` 能每巡重掷一个随机分钟、把触发本身挪开整点，代码和单测都留着，但当前口径不用。）
 
@@ -149,7 +152,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 触发时刻随机化（2026-10-27）
 
-雷达**自己上闹钟**：`python scripts/plan.py next` 输出 `wake_at` + 一次性 rrule（`FREQ=DAILY;COUNT=1`），收尾后写回活任务（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」；醒点 = 上一条记录 + 1–10 分钟）。「每小时/每天几点」那种排班只剩 `scripts/schedule.py all` 当备用，当前口径不用。`plan.py gate` 只防同一分钟重复触发（11-13 老板「不要设定阈值」）。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
+雷达**自己上闹钟**：`python scripts/plan.py next` 输出 `wake_at` + 一次性 rrule（`FREQ=DAILY;COUNT=1`），收尾后写回活任务（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」；醒点 = 收尾时刻（= 看完最后一条那一刻，时长已由 `jitter --watch` 花掉）+ 1–10 分钟）。「每小时/每天几点」那种排班只剩 `scripts/schedule.py all` 当备用，当前口径不用。`plan.py gate` 只防同一分钟重复触发（11-13 老板「不要设定阈值」）。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
 
 ## cookie 失效自救（扫码登录，2026-10-27 起）
 
@@ -258,7 +261,7 @@ scripts/
 │   ├── notify.py     通知与私信（198 行）
 │   ├── dynamic.py    动态发/删（77 行）
 │   ├── like.py       点赞 / 取消赞（61 行）
-│   ├── jitter.py     巡更抖动 / 串内歇息 / 收尾打卡（76 行）
+│   ├── jitter.py     巡更抖动 / 看片计时 / 串内歇息 / 收尾打卡（103 行）
 │   ├── feedback.py   反馈/统计/活跃度（138 行）
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）

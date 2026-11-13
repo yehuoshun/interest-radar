@@ -86,7 +86,8 @@ python scripts/schedule.py valley              # 打印谷时模式的 DTSTART+R
 python scripts/schedule.py all --rrule-only    # 全天每小时，只要 rrule
 python scripts/schedule.py all --minute 0      # 整点排班（备用；当前醒点由 plan.py next 按「上一次 + 1–10 分钟」自己定）
 python scripts/plan.py gate                    # 只防同一分钟重复触发（不是排班）
-python scripts/plan.py next                    # 下一次醒点（上一条记录 + 1–10 分钟）+ 一次性 rrule
+python scripts/radar.py jitter --watch 414 --sleep  # 看片计时：这条 6:54 → 花掉 414 秒
+python scripts/plan.py next                    # 下一次醒点（收尾 + 1–10 分钟）+ 一次性 rrule
 python scripts/plan.py describe                 # 当前节奏的一句话说明
 python scripts/schedule.py valley --minute 43  # 换分钟偏移（默认 17）
 python scripts/schedule.py all --random-minute # 备选：随机开巡分钟，每巡重掷，下次触发至少 +25 分钟

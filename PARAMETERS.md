@@ -95,7 +95,8 @@
 | 参数 | 运行值 | 生效方式 | 状态 |
 |---|---|---|---|
 | `schedule.mode` / `rrule` | plan / **一次性** `DTSTART;TZID=Asia/Shanghai:<wake>` + `RRULE:FREQ=DAILY;COUNT=1`（**节奏只有一条**：上一次观看结束 + 1–10 分钟 = 下一次观看开始，`scripts/plan.py next` 按这条算；11-13 老板否掉了我拍的 50–120 分钟）；`scripts/schedule.py` 的 all / night / valley / `--every-minutes N` 仅备用 | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，醒来干什么写在 prompt 里 |
-| 触发时刻 | 上一条记录 + 1–10 分钟 | `plan.py next` → `wake_rrule()`（一次性闹钟，不贴整点） | ✅ 接线（外部） |
+| 触发时刻 | 收尾打卡 + 1–10 分钟（收尾 = 开门 + 看片时长） | `plan.py next` → `wake_rrule()`（一次性闹钟，不贴整点） | ✅ 接线（外部） |
+| 看片计时 | 视频时长 | `radar.py jitter --watch <秒> --sleep`（`kind=watch`；11-13 17:07 老板「是视频时长 + 一到十分钟」） | ✅ 接线（外部） |
 | 看完一条后的歇息 | 1–10 分钟 | `radar.py jitter --min-min 1 --max-min 10 --rest`（均匀分布；`plan.py` 的醒点也用它） | ✅ 接线（外部） |
 | 串内歇息 | 1–10 分钟 | `radar.py jitter --min-min 1 --max-min 10 --rest`（均匀分布；11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」） | ✅ 接线（外部） |
 | 一串收尾打卡 | 即时 | `radar.py jitter --close`（`kind=close`；`plan.py gate` 的巡更间隔从这一刻算） | ✅ 接线（外部） |
