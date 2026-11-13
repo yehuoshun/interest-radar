@@ -53,7 +53,11 @@ def next_hour(now=None) -> datetime:
 
 
 def last_scan() -> datetime:
-    """上一次真开刷的时间：`state/jitter-log.jsonl` 的最后一条（抖动必记）。"""
+    """上一次真开门的时间：`state/jitter-log.jsonl` 里最后一条 `kind=open`。
+
+    串内歇息（`kind=rest`）不算 —— 那是「看完一条歇 1–10 分钟」，不该喂饱巡更护栏。
+    老记录没有 `kind` 字段，一律当 open。
+    """
     f = state_dir() / LOG_NAME
     if not f.is_file():
         return None
@@ -63,7 +67,10 @@ def last_scan() -> datetime:
         if not line:
             continue
         try:
-            ts = datetime.fromisoformat(json.loads(line)["ts"]).replace(tzinfo=TZ)
+            row = json.loads(line)
+            if row.get("kind", "open") == "rest":
+                continue
+            ts = datetime.fromisoformat(row["ts"]).replace(tzinfo=TZ)
         except (ValueError, KeyError, TypeError):
             continue
     return ts

@@ -67,6 +67,7 @@ python $R reply --bv BV1xxx                        # **@ 主号 只走这个**�
 python $R feed --num 12 --rounds 2                 # 刷首页推荐流（让算法决定看什么，不按关键词挖）
 python $R like --bv BV1xxx --yes                   # 点赞（--cancel 取消；同一视频只点一次）
 python $R jitter --max-min 10 --sleep              # 巡更前抖一下（0–10 分钟，别每次都准点）
+python $R jitter --min-min 1 --max-min 10 --rest --sleep   # 看完一条歇 1–10 分钟（kind=rest，不占巡更间隔）
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
@@ -89,7 +90,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 **作息**：24 小时值班，但不是每小时硬巡 —— 间隔由 `scripts/plan.py` 规划（11-13 老板「不要设定阈值。你规划好刷视频的间隔就行了」）：夜里 22–05 每小时一次、白天 08–21 每 2 小时一次、06–07 睡（整点触发 `BYMINUTE=0`，再抖 0–10 分钟），白天轻、夜里重；一巡 15 分钟内收尾，多数时候只是看，0 互动是正常结果；@ 老板：白天 ≤1 条/巡（白天合计 ≤3，11-13 老板「白天可以@」后不再压着）、夜里 ≤2 条/巡（整夜 ≤4，11-13「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
 一巡写操作上限：赞 ≤2、评论 ≤1、@ ≤2；整夜 @ ≤4（11-13 老板「一晚上只艾特我一次啊」后从 1/夜放开，见 `chg-20261113-120250-b0414b`）。
 
-**抖动**：rrule 定在**整点**（`BYMINUTE=0`），开门时间靠 `radar.py jitter --max-min 10 --sleep` 随机往后推 0–10 分钟（三角分布，多数很快、偶尔接近 10 分钟），实际等待记在 `state/jitter-log.jsonl`。「整点睡醒、先发会儿呆再干活」—— 11-13 老板定的口径。开门前先过 `python scripts/plan.py gate`（护栏：夜里 ≥50 分钟、白天 ≥100 分钟），`allowed:false` 就这一巡静默。
+**抖动**：rrule 定在**整点**（`BYMINUTE=0`），开门时间靠 `radar.py jitter --max-min 10 --sleep` 随机往后推 0–10 分钟（三角分布，多数很快、偶尔接近 10 分钟），实际等待记在 `state/jitter-log.jsonl`。「整点睡醒、先发会儿呆再干活」—— 11-13 老板定的口径。**串内歇息**：看完一条视频再点下一条之前，`radar.py jitter --min-min 1 --max-min 10 --rest --sleep` 歇 1–10 分钟（均匀分布，11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」）；记 `kind=rest`，`plan.py gate` 不认它。开门前先过 `python scripts/plan.py gate`（护栏：夜里 ≥50 分钟、白天 ≥100 分钟），`allowed:false` 就这一巡静默。
 
 （备选：`schedule.py --random-minute` 能每巡重掷一个随机分钟、把触发本身挪开整点，代码和单测都留着，但当前口径不用。）
 
@@ -256,12 +257,12 @@ scripts/
 │   ├── notify.py     通知与私信（198 行）
 │   ├── dynamic.py    动态发/删（77 行）
 │   ├── like.py       点赞 / 取消赞（61 行）
-│   ├── jitter.py     巡更随机抖动（50 行）
+│   ├── jitter.py     巡更抖动 / 串内歇息（63 行）
 │   ├── feedback.py   反馈/统计/活跃度（138 行）
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 146 用例（unittest，零网络）
+└── tests/            # 150 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -275,7 +276,7 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-146 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+150 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
 state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。

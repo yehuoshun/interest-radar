@@ -97,6 +97,7 @@
 | `schedule.mode` / `rrule` | plan / `FREQ=DAILY;BYHOUR=0,1,2,3,4,5,8,10,12,14,16,18,20,22,23;BYMINUTE=0`（**按间隔排班**：夜里 22–05 每小时、白天 08–21 每 2 小时、06–07 睡；整点触发 + 0–10 分钟抖动；11-13 老板「不要设定阈值。你规划好刷视频的间隔就行了」，排班源 = `scripts/plan.py rrule`）；另有 all / night / valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
 | 触发时刻 | 整点 `BYMINUTE=0` | `schedule.py --minute 0`（11-13 老板口径：整点只是闹钟） | ✅ 接线（外部） |
 | 整点后抖动 | 0–10 分钟 | `radar.py jitter --max-min 10`（三角分布，峰值 0） | ✅ 接线（外部） |
+| 串内歇息 | 1–10 分钟 | `radar.py jitter --min-min 1 --max-min 10 --rest`（均匀分布；11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」） | ✅ 接线（外部） |
 | 随机分钟（备选） | 2–58，每巡重掷 | `schedule.py --random-minute`（`pick_minute()`；当前口径不用，代码保留） | ⚪ 未启用 |
 | 跑一轮的间隔（分钟） | 10 | `schedule.py --every-minutes`（`FREQ=MINUTELY;INTERVAL=N`，无 BY 部件） | ✅ 接线（外部） |
 | 谷时口径（valley） | 工作日 9-12/14-18 高峰 | 📐 注释口径 | 📐 |
@@ -147,7 +148,7 @@
    - `python scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂到定时任务做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
    - `python scripts/radar.py rate` — 看 @ 频控用量与参数
    - `radar.py mention --bv <BV> --dry-run`（默认干跑）— 验闸与文案
-   - `cd scripts && python -m unittest discover tests -v` — 146 用例回归（零网络）
+   - `cd scripts && python -m unittest discover tests -v` — 150 用例回归（零网络）
 5. **审计口径**：本文件每次改参数后顺手核一遍「接线/漂移」列，保持地图与代码同步。
 
 ---

@@ -20,7 +20,14 @@ class TestPlan(unittest.TestCase):
 
     def _log(self, moment):
         row = {"ts": moment.strftime("%Y-%m-%dT%H:%M:%S"), "delay_sec": 30, "max_min": 10, "slept": True}
-        (self.dir / p.LOG_NAME).write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+        with (self.dir / p.LOG_NAME).open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    def _rest(self, moment):
+        row = {"ts": moment.strftime("%Y-%m-%dT%H:%M:%S"), "delay_sec": 180, "max_min": 10,
+               "min_min": 1, "kind": "rest", "slept": True}
+        with (self.dir / p.LOG_NAME).open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     def test_hours_match_cadence(self):
         self.assertEqual(p.hours(), sorted(p.DAY_HOURS + p.NIGHT_HOURS))
@@ -51,6 +58,15 @@ class TestPlan(unittest.TestCase):
         now = datetime(2026, 11, 13, 14, 3, tzinfo=p.TZ)
         self._log(now - timedelta(minutes=p.DAY_GAP_MIN + 5))
         self.assertTrue(p.gate(now)["allowed"])
+
+    def test_rest_rows_do_not_feed_gate(self):
+        """串内歇息不能喂饱巡更护栏：刚歇完也算「该刷」。"""
+        now = datetime(2026, 11, 13, 14, 3, tzinfo=p.TZ)
+        self._log(now - timedelta(minutes=p.DAY_GAP_MIN + 20))
+        self._rest(now - timedelta(minutes=1))
+        out = p.gate(now)
+        self.assertTrue(out["allowed"])
+        self.assertEqual(out["since_last_min"], p.DAY_GAP_MIN + 20)
 
     def test_rrule_has_planned_hours(self):
         r = p.rrule(datetime(2026, 11, 13, 14, 3, tzinfo=p.TZ))
