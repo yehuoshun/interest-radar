@@ -145,6 +145,7 @@ graph TD
 | **抽帧九宫格 / 硬字幕长图** | `media/frames.py` | `pick_points:203` `build_grid:216` `main:259` |
 | **稀疏下载**（moov 解析、GOP 区间、零填充） | `media/mp4_sparse.py` | `_SparsePlan:78` `sparse_plan:145` `build_sparse:184` |
 | **调度模式（all/valley/每 N 分钟）** | `schedule.py` | `build_rrule()` `build_interval_rrule()` `plan()` `save_state()` |
+| **值班节奏（排班 + 该不该刷）** | `plan.py` | `hours()` `gate()` `rrule()` `describe()`（11-13 老板「不要设定阈值…规划好刷视频的间隔」） |
 | **cookie 失效自救（扫码）** | `bili_qr_login.py` | 脚本体（`QR_PATH` 输出二维码 → 轮询 → 跟随 crossDomain → 覆写 cookie） |
 
 ---
@@ -235,6 +236,7 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | `test_frames_plan.py` | `_SparsePlan` sample→offset 映射（stts/stsc 坑） | 5 例 |
 | `test_jitter.py` | 抖动范围 / 干跑不睡 / 越界拒绝 / 记账 | 3 例 |
 | `test_like.py` | 点赞闸（开关关 / 干跑不落账 / 赞过再赞 / `--cancel` 绕同一视频闸） | 4 例 |
+| `test_plan.py` | 排班整点（06–07 不排）/ 护栏间隔 / `gate` 放行与静默 / rrule 的 BYHOUR | 6 例 |
 | `test_schedule.py` | rrule 生成（DAILY+BY 部件 / MINUTELY 间隔无 BY / 随机分钟范围 / 拨钟提前量） | 10 例 |
 | `test_write_cooldown.py` | 写冷却（两账本取最新） | 5 例 |
 

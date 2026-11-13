@@ -51,7 +51,7 @@
 | `per_round` | 2 | 维护者 | —— | ⚠️ 漂移：**代码闸没读它**（comment.py:63-74 只读 per_hour/per_day），改它不生效；11-13 与 `per_hour` 一起从 1 放到 2，只为文档口径一致 |
 | `per_hour` | 2 | 维护者 | 热加载 · 闸⑥ | ✅ 接线（comment.py:63）——**实际生效项**；11-13 老板「一晚上只艾特我一次啊」后 1→2（`chg-20261113-120250-b0414b`），配合 prompt 层「整夜 ≤4」 |
 | `per_day` | 0 | 维护者 | 热加载 · 闸⑥ | ✅ 接线（comment.py:64） |
-| `min_score` | 17 | 维护者 | —— | 💤 死配置：全代码+tests 零引用；SKILL.md 只写「总分 ≥ min_score」**不写数值**——模型看不到 17，真值无人执行（实际生效的是 14，见 B 组） |
+| `min_score` | 0 | 维护者 | —— | 💤 死配置：全代码+tests 零引用；**11-13 老板「不要设定阈值」→ 17→0（`chg-20261113-131457-3c5bcb`）**，两个分数闸（它和 `budget.min_total_score`）一起作废，判断交回模型 |
 | `template` | 兜底文案 | 维护者 | —— | 💤 死配置：comment.py:80 用硬编码兜底「@{name} 这个值得看一眼」，template 从不被读 |
 | `forbid` | 敏感词表 | 维护者 | 热加载 · 闸⑤ | ✅ 接线（comment.py:86） |
 | 正文 ≤150 字 + 必须含 @ | —— | 代码 | 闸④ | ✅ 接线（comment.py:83-84，代码常量 🔒） |
@@ -62,7 +62,7 @@
 |---|---|---|---|---|
 | `budget.max_subtitles_per_round` | — | 维护者 | —— | 🗑️ **B2 已删（2026-11-02）**：10-27 老板拍板「每轮字幕不限」后一直是死键，直接清除；历史注释保留在 config `_subtitle_note` |
 | `budget.max_push_per_round` | 1 | 维护者 | —— | ⚠️ 漂移：config 是 1（10-27 老板拍板「每轮最多推 1 条」），但 **SKILL.md 第 9 步仍写「只推 0-3 条」且没写 1** → 模型看到的真值是 0-3，可能推超 1 条 |
-| `budget.min_total_score` | 14 | 维护者 | —— | ✅ **B2 已接线（2026-11-02）**：`comment --score < 它` 会被代码拒发（硬闸）；日报最低分仍由 verify-params 对照 |
+| `budget.min_total_score` | 0 | 维护者 | —— | ✅ **B2 已接线（2026-11-02）**：`comment --score < 它` 会被代码拒发（硬闸）；**11-13 老板「不要设定阈值」→ 14→0（`chg-20261113-131457-7c6c78`）**，闸还在但等于不卡分 |
 | 四维打分（相关/新奇/实操/新鲜 各 0-5） | —— | 模型规则 | 📐 | SKILL.md 76 + charter.md 18 |
 | 新奇度 ≤1 直接砍 | —— | 模型规则 | 📐 | SKILL.md 76 |
 | 粗筛 ≥8 条候选 | —— | 模型规则 | 📐 | SKILL.md 流程第 4 步（省 token 用，非硬闸） |
@@ -78,8 +78,8 @@
 | `write.cooldown_sec` | 120 | comment.py:99/269、dynamic.py:41、notify.py:51 |
 | `write.dynamic.enabled / per_hour / per_day / forbid` | true / 0 / 3 / 词表 | dynamic.py:27、gates.py:79 |
 | `write.message.enabled / per_hour / per_day / allow_mid / forbid` | true / 0 / 5 / [主号] / 词表 | gates.py:79、notify.py（白名单硬闸） |
-| `write.comment.enabled / per_hour / per_day / same_video_once / forbid` | true / 3 / 0 / true / 词表 | gates.py:79、comment.py |
-| `write.like.enabled / per_hour / per_day / same_video_once / forbid` | true / 6 / 0 / true / 词表 | gates.py:79、like.py |
+| `write.comment.enabled / per_hour / per_day / same_video_once / forbid` | true / 1 / 0 / true / 词表 | gates.py:79、comment.py（per_hour 11-13 由 3 收到 1：防封号安全阀） |
+| `write.like.enabled / per_hour / per_day / same_video_once / forbid` | true / 2 / 0 / true / 词表 | gates.py:79、like.py（per_hour 11-13 由 6 收到 2：防封号安全阀，不是内容标准） |
 | 动态/私信 ≤200 字、评论 ≤200 字 | —— | 代码常量 🔒 |
 
 ## D 组 · 陌生人草稿审批 — config `draft`（全部 ✅）
@@ -94,7 +94,7 @@
 
 | 参数 | 运行值 | 生效方式 | 状态 |
 |---|---|---|---|
-| `schedule.mode` / `rrule` | all / `FREQ=DAILY;BYHOUR=0,1,…,23;BYMINUTE=0`（**24 小时值班，整点触发 + 0–10 分钟抖动**，11-13 老板「白天也继续吧，改成24小时」；此前是 night = 22:00–05:00 每小时一巡）；另有 valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
+| `schedule.mode` / `rrule` | plan / `FREQ=DAILY;BYHOUR=0,1,2,3,4,5,8,10,12,14,16,18,20,22,23;BYMINUTE=0`（**按间隔排班**：夜里 22–05 每小时、白天 08–21 每 2 小时、06–07 睡；整点触发 + 0–10 分钟抖动；11-13 老板「不要设定阈值。你规划好刷视频的间隔就行了」，排班源 = `scripts/plan.py rrule`）；另有 all / night / valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
 | 触发时刻 | 整点 `BYMINUTE=0` | `schedule.py --minute 0`（11-13 老板口径：整点只是闹钟） | ✅ 接线（外部） |
 | 整点后抖动 | 0–10 分钟 | `radar.py jitter --max-min 10`（三角分布，峰值 0） | ✅ 接线（外部） |
 | 随机分钟（备选） | 2–58，每巡重掷 | `schedule.py --random-minute`（`pick_minute()`；当前口径不用，代码保留） | ⚪ 未启用 |
@@ -115,7 +115,7 @@
 > `min_total_score` 接线为 `comment --score` 硬闸、`max_subtitles_per_round` 死键已删。
 > （3）**口径裁决（11-02 老板拍板 AA）**：#1 统一「每轮 @ ≤1」（10-27）；#2 语义分层（@ ≤1 / 汇报候选 0-3）并加注；
 > 模板 `max_push_per_round` 3→1 对齐；**cron 每时轮 prompt 的「每轮最多 3 条字幕」已修**（#7：10-27 的「字幕不限」此前 6 天从未生效，现已改「每轮不限（10-27 拍板）」）。
-> 剩余处置（min_score=17 幽灵值是否下放硬闸）仍待老板拍板。
+> 剩余处置（min_score 幽灵值是否下放硬闸）已由老板 11-13「不要设定阈值」作废：两个分数闸都归零，不再下放。
 >
 > （4）**11-07 老板拍板（治超时）**：单轮字幕上限从「不限」改回「每轮 ≤5 条」（+ 抽帧 ≤2、整轮 12 分钟内收尾）；cron `60d88f54` 超时 900s→1800s（单轮常跑到 14 分钟贴 900s 顶，11-07 连续 3 轮超时）。四处同步：charter.md / SKILL.md / state/config.json `_subtitle_note` / cron prompt；`budget.max_subtitles_per_round` 仍为已删死键（不恢复），上限只在文档/prompt 层约束模型。
 
@@ -147,7 +147,7 @@
    - `python scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂到定时任务做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
    - `python scripts/radar.py rate` — 看 @ 频控用量与参数
    - `radar.py mention --bv <BV> --dry-run`（默认干跑）— 验闸与文案
-   - `cd scripts && python -m unittest discover tests -v` — 138 用例回归（零网络）
+   - `cd scripts && python -m unittest discover tests -v` — 146 用例回归（零网络）
 5. **审计口径**：本文件每次改参数后顺手核一遍「接线/漂移」列，保持地图与代码同步。
 
 ---

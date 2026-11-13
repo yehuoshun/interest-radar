@@ -70,7 +70,7 @@ python $R jitter --max-min 10 --sleep              # 巡更前抖一下（0–10
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
 python $R dynamic --text "…"                       # 发动态（≤200 字，默认千跑，--yes 真发）
-python $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸；--score 低于 budget.min_total_score 会被拒，exit 14）
+python $R comment --bv BV1xxx --text "…" --yes     # 自发评论（≤200 字，无需 @；写操作闸；`budget.min_total_score` 11-13 起为 0（不卡分；只剩防封号安全阀））
 python $R dynamic-del --dyn-id 1260… --yes          # 删掉发错的动态
 python $R msg --mid 239028467 --text "…" --yes     # 私信（只准发 allow_mid 白名单）
 python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这条评论（验阿瓦隆）
@@ -86,10 +86,10 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 刷着玩模式（2026-11-13 老板改口径）
 
-**作息**：24 小时值班（11-13 老板「白天也继续吧，改成24小时」）—— 全天每小时巡一次（整点触发 `BYMINUTE=0`，再抖 0–10 分钟），白天轻、夜里重；一巡 15 分钟内收尾，多数时候只是看，0 互动是正常结果；@ 老板：白天 ≤1 条/巡（白天合计 ≤3，11-13 老板「白天可以@」后不再压着）、夜里 ≤2 条/巡（整夜 ≤4，11-13「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
+**作息**：24 小时值班，但不是每小时硬巡 —— 间隔由 `scripts/plan.py` 规划（11-13 老板「不要设定阈值。你规划好刷视频的间隔就行了」）：夜里 22–05 每小时一次、白天 08–21 每 2 小时一次、06–07 睡（整点触发 `BYMINUTE=0`，再抖 0–10 分钟），白天轻、夜里重；一巡 15 分钟内收尾，多数时候只是看，0 互动是正常结果；@ 老板：白天 ≤1 条/巡（白天合计 ≤3，11-13 老板「白天可以@」后不再压着）、夜里 ≤2 条/巡（整夜 ≤4，11-13「一晚上只艾特我一次啊」后从「整夜 ≤2」放开）。
 一巡写操作上限：赞 ≤2、评论 ≤1、@ ≤2；整夜 @ ≤4（11-13 老板「一晚上只艾特我一次啊」后从 1/夜放开，见 `chg-20261113-120250-b0414b`）。
 
-**抖动**：rrule 定在**整点**（`BYMINUTE=0`），开门时间靠 `radar.py jitter --max-min 10 --sleep` 随机往后推 0–10 分钟（三角分布，多数很快、偶尔接近 10 分钟），实际等待记在 `state/jitter-log.jsonl`。「整点睡醒、先发会儿呆再干活」—— 11-13 老板定的口径。
+**抖动**：rrule 定在**整点**（`BYMINUTE=0`），开门时间靠 `radar.py jitter --max-min 10 --sleep` 随机往后推 0–10 分钟（三角分布，多数很快、偶尔接近 10 分钟），实际等待记在 `state/jitter-log.jsonl`。「整点睡醒、先发会儿呆再干活」—— 11-13 老板定的口径。开门前先过 `python scripts/plan.py gate`（护栏：夜里 ≥50 分钟、白天 ≥100 分钟），`allowed:false` 就这一巡静默。
 
 （备选：`schedule.py --random-minute` 能每巡重掷一个随机分钟、把触发本身挪开整点，代码和单测都留着，但当前口径不用。）
 
@@ -98,7 +98,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 - 不再按关键词挖线索，改用首页推荐流：`radar.py feed --num 12 --rounds 2`。
 - 真读几条（`radar.py sub <BV>`），读完再决定：
-  - 好 → `radar.py like --bv BV1xxx --yes`（写闸 `write.like`，默认 per_hour 6、同一视频只点一次；`--cancel` 取消赞）
+  - 好 → `radar.py like --bv BV1xxx --yes`（写闸 `write.like`，per_hour 现为 2 —— 防封号安全阀，不参与判断；同一视频只点一次；`--cancel` 取消赞）
   - 有话要说 → `radar.py comment --bv BV1xxx --text "…" --yes`（自发评论，≤200 字，**不走 mention 闸**）
   - 觉得老板会感兴趣 → `radar.py reply --bv BV1xxx --text "@夜灬瞬 …" --yes`（**只有这条走 mention 闸 / 频控 / 同一视频只发一次**）
 - 判据：只对真读完、有具体话可说的视频动手；推广、广告、纯搬运、梗图不点不评。零互动是合法结果，不为产量凑。
@@ -147,7 +147,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 触发时刻随机化（2026-10-27）
 
-雷达**整点触发**：`scripts/schedule.py --minute 0`（`BYMINUTE=0`），整点只是闹钟，真正开门由 jitter 0–10 分钟决定（11-13 老板口径）。要更不像机器也可以改回 `--random-minute` 每巡重掷分钟。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
+雷达**整点触发**：排班由 `python scripts/plan.py rrule` 生成（夜里 22–05 每小时、白天 08–21 每 2 小时、06–07 睡；`BYMINUTE=0`），整点只是闹钟，真正开门由 `plan.py gate` 的间隔护栏 + jitter 0–10 分钟决定（11-13 老板「不要设定阈值。你规划好刷视频的间隔就行了」）。`scripts/schedule.py all --minute 0` 仍可手搓等价 rrule。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
 
 ## cookie 失效自救（扫码登录，2026-10-27 起）
 
@@ -261,7 +261,7 @@ scripts/
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 138 用例（unittest，零网络）
+└── tests/            # 146 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -275,7 +275,7 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-138 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+146 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
 state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）。
 **新功能必须补测试**：核心闸逻辑（draft/eng/冷却/退避）改动跑一遍全绿才收。
