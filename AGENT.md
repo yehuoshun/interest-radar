@@ -168,7 +168,7 @@ graph TD
 | `comment_check` | `num` `warn_ratio` `name_keywords` `ai_patterns` | `comment.py:190-194` | 水军快筛参数（`name_keywords` 也被 `draft.py:66` 用来拒水军昵称入稿） |
 | `draft` | `enabled` `per_12h` `per_24h` `reply_interval_days` `forbid` | `draft.py:61-148` | 草稿开关 / 频控 / 同人 30 天 / 敏感词 |
 | `write.<kind>` | `enabled` `per_hour` `per_day` `forbid` `allow_mid` `same_video_once` | `gates.py:79`；`comment.py:257-268`；`dynamic.py:27`；`notify.py:82` | 写操作闸（kind = `comment`/`dynamic`/`message`） |
-| `write` | `cooldown_sec` | `comment.py:98` `:268`、`draft.py:164`、`dynamic.py:41`、`notify.py:51` | 写冷却秒数（默认 60） |
+| `write` | `cooldown_sec` | `comment.py:98` `:268`、`draft.py:164`、`dynamic.py:41`、`notify.py:51` | 写冷却秒数（本机 config 60；代码缺省 120） |
 | `budget` | `max_push_per_round` `min_total_score` | `comment.py`（`floor = 14 if raw is None else int(raw)`；`floor > 0` 才卡分） | `min_total_score` 2026-11-02 起是 `comment --score` 硬闸；**11-13 老板「不要设定阈值」→ 置 0 = 不卡分**（0 不再被旧写法的 `or 14` 吞回）。`max_push_per_round` 代码不读，只在 SKILL/charter 层遵守 |
 | `schedule` | `mode` `rrule` | 由 `schedule.py` 写 | 记录，供报告引用；DSH 用 `schedule_create` 建任务 |
 
