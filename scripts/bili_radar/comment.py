@@ -257,8 +257,11 @@ def cmd_comment(a):
     # B2（2026-11-02）：可选分数硬闸 —— 模型每轮评分后发 comment 时带 --score，
     # 低于 budget.min_total_score 代码直接拒发（分数只在模型推理里，不带就不拦、只提醒）
     if getattr(a, "score", None) is not None:
-        floor = int((read_config().get("budget") or {}).get("min_total_score", 14) or 14)
-        if a.score < floor:
+        # 2026-11-13：min_total_score 允许为 0（= 不卡分）。旧写法 `... or 14` 会把 0 吞回 14，
+        # 老板说「不要设定阈值」后闸实际没关掉 —— 这里只把 None 当「没配」。
+        raw = (read_config().get("budget") or {}).get("min_total_score", 14)
+        floor = 14 if raw is None else int(raw)
+        if floor > 0 and a.score < floor:
             die(f"闸⑧（B2）：分数 {a.score} < 下限 {floor}（budget.min_total_score）"
                 f"—— 拒绝发，不达标的视频别硬推", 14)
     else:

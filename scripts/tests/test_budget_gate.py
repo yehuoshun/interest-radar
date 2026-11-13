@@ -78,6 +78,16 @@ class TestCommentScoreGate(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("没带 --score", err)
 
+    def test_zero_floor_disables_gate(self):
+        """min_total_score=0 = 不卡分（11-13 老板「不要设定阈值」）：0 分也能过。"""
+        cfg = json.loads(Path(self.tmp, "config.json").read_text(encoding="utf-8"))
+        cfg["budget"]["min_total_score"] = 0
+        Path(self.tmp, "config.json").write_text(
+            json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+        code, _, err = dry_comment(self.tmp, score=0)
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("B2", err)
+
     def test_floor_reads_from_config(self):
         # 阈值来自 config：把 budget.min_total_score 抬到 20 → 18 就不行了
         cfg = json.loads(Path(self.tmp, "config.json").read_text(encoding="utf-8"))
