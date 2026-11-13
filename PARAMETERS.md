@@ -94,8 +94,8 @@
 
 | 参数 | 运行值 | 生效方式 | 状态 |
 |---|---|---|---|
-| `schedule.mode` / `rrule` | plan / `FREQ=DAILY;BYHOUR=0,1,2,…,23;BYMINUTE=0`（**全天每小时一巡**：11-13 14:02 老板选「2」，护栏 ≥50 分钟；整点触发 + 0–10 分钟抖动；11-13 老板「不要设定阈值。你规划好刷视频的间隔就行了」，排班源 = `scripts/plan.py rrule`）；另有 all / night / valley / `--every-minutes N` | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，白天轻/夜里重只写在 prompt 里 |
-| 触发时刻 | 整点 `BYMINUTE=0` | `schedule.py --minute 0`（11-13 老板口径：整点只是闹钟） | ✅ 接线（外部） |
+| `schedule.mode` / `rrule` | plan / **一次性** `DTSTART;TZID=Asia/Shanghai:<wake>` + `RRULE:FREQ=DAILY;COUNT=1`（**醒点自己定**：11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」，`scripts/plan.py next` = 上一次收尾 + 50–120 分钟三角分布随机间隔）；另有 all / night / valley / `--every-minutes N` 备用 | 维护者 | 文档层 | ⚠️ 模型层：rrule 只决定何时醒，醒来干什么写在 prompt 里 |
+| 触发时刻 | 上一次收尾 + 50–120 分钟随机 | `plan.py next` → `wake_rrule()`（一次性闹钟，不贴整点） | ✅ 接线（外部） |
 | 整点后抖动 | 0–10 分钟 | `radar.py jitter --max-min 10`（三角分布，峰值 0） | ✅ 接线（外部） |
 | 串内歇息 | 1–10 分钟 | `radar.py jitter --min-min 1 --max-min 10 --rest`（均匀分布；11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」） | ✅ 接线（外部） |
 | 一串收尾打卡 | 即时 | `radar.py jitter --close`（`kind=close`；`plan.py gate` 的巡更间隔从这一刻算） | ✅ 接线（外部） |
