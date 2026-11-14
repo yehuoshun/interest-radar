@@ -28,7 +28,7 @@
 
 ```mermaid
 graph TD
-  A["scripts/radar.py<br/>薄壳 18 行"] --> B["bili_radar/cli.py<br/>argparse 路由 + 全量 re-export"]
+  A["scripts/radar.py<br/>薄壳 24 行"] --> B["bili_radar/cli.py<br/>argparse 路由 + 全量 re-export"]
   A2["scripts/frames.py<br/>薄壳 17 行"] --> M1["bili_radar/media/frames.py"]
   B --> C["core.py<br/>常量/路径/cookie/config/die"]
   B --> D["client.py<br/>退避/熔断/wbi/csrf/GET+POST"]
@@ -59,11 +59,11 @@ graph TD
 
 | 文件 | 行数 | 职责 | 关键符号（起始行） |
 |---|---|---|---|
-| `radar.py` | 18 | CLI 薄壳：`sys.path` + `from bili_radar.cli import main` | — |
+| `radar.py` | 24 | CLI 薄壳：stdout/stderr 改 UTF-8 + `sys.path` + `from bili_radar.cli import main` | — |
 | `frames.py` | 17 | 抽帧薄壳 → `bili_radar.media.frames.main` | — |
 | `init.py` | 114 | 初始化 state/：建 out/frames、拷模板、写默认 config.json（写操作全关）、打印 cookie 路径 | `DEFAULT_CONFIG:27` `_copy_template:67` `main:79` |
 | `bili_qr_login.py` | 180 | 扫码登录自救（纯标准库 urllib；`qrcode` 仅出图用，可选依赖） | `http_json:47` `follow:53` `cookies_dict:64` `main:68` `write_cookie:152` |
-| `plan.py` | 127 | 下一次什么时候醒：`last_seen`（= 收尾打卡 / 看完那一刻）+ 1–10 分钟 → 一次性闹钟；`gate` 只防同一分钟重复触发（2026-11-13） | `TZ:25` `REST_MIN:27` `REST_MAX:28` `last_seen:32` `last_scan:54` `rest_min:59` `next_wake:65` `wake_rrule:75` `gate:81` `describe:104` `main:110` |
+| `plan.py` | 154 | 下一次什么时候醒：`last_seen`（= 收尾打卡 / 看完那一刻）+ 1–10 分钟 → 一次性闹钟；`gate` 只防同一分钟重复触发（2026-11-13） | `TZ:31` `REST_MIN:33` `REST_MAX:34` `last_seen:38` `last_scan:60` `rest_min:65` `next_wake:81` `wake_rrule:91` `gate:97` `describe:120` `main:126` |
 | `schedule.py` | 206 | 打印调度的 rrule + prompt（all / valley / night / `--every-minutes` / `--random-minute`）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:47` `HOURS:48` `DESC:54` `MINUTE_LO:62` `RANDOM_LEAD_MINUTES:64` `pick_minute:67` `next_start:78` `build_rrule:92` `INTERVAL_MODE_RE:101` `build_interval_rrule:110` `describe:122` `plan:129` `prompt_text:137` `save_state:144` `main:162` |
 | `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
