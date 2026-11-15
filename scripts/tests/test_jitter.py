@@ -60,14 +60,14 @@ class TestJitter(unittest.TestCase):
                 self._run(self._args(max_min=bad))
 
     def test_rest_has_floor(self):
-        """串内歇息 1–10 分钟：下限真的生效（11-13 老板「歇 1–10 分钟」）。"""
+        """串内歇息：下限真的生效（11-15 18:00 区间收紧到 1–3 分钟）。"""
         for _ in range(50):
             sec = j.pick_delay(10, 1)
             self.assertGreaterEqual(sec, 60)
             self.assertLessEqual(sec, 600)
 
     def test_rest_logged_with_kind(self):
-        out = self._run(self._args(max_min=10, min_min=1, rest=True))
+        out = self._run(self._args(max_min=3, min_min=1, rest=True))
         self.assertEqual(out["kind"], "rest")
         row = self._rows()[0]
         self.assertEqual(row["kind"], "rest")
@@ -106,6 +106,25 @@ class TestJitter(unittest.TestCase):
         row = self._rows()[0]
         self.assertEqual(row["kind"], "watch")
         self.assertEqual(row["dur_sec"], 414)
+
+    def test_watch_capped_at_ten_minutes(self):
+        """超过 10 分钟的片只按 600 秒计入节奏（11-15 18:00 老板「视频时长最大计算 10 分钟」）。"""
+        self.assertEqual(j.WATCH_CAP_SEC, 600)
+        out = self._run(self._args(watch=1308))
+        self.assertEqual(out["dur_sec"], 600)
+        self.assertEqual(out["raw_sec"], 1308)
+        self.assertTrue(out["capped"])
+        self.assertFalse(out["slept"])
+        row = self._rows()[0]
+        self.assertEqual(row["dur_sec"], 600)
+        self.assertEqual(row["raw_sec"], 1308)
+
+    def test_watch_short_video_not_capped(self):
+        """10 分钟以内的片照实记，不带 raw_sec。"""
+        out = self._run(self._args(watch=414))
+        self.assertFalse(out["capped"])
+        self.assertEqual(out["dur_sec"], 414)
+        self.assertNotIn("raw_sec", self._rows()[0])
 
     def test_watch_rejects_out_of_range(self):
         for bad in (-5, j.MAX_WATCH_SEC + 1):

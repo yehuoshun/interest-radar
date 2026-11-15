@@ -7,6 +7,8 @@
    11-13 17:07 老板：「是视频时长 + 一到十分钟」，不是光歇 1–10 分钟 ——
    不看片就没有「8 分钟」这段，节奏会退化成每两三分钟一巡。所以每看一条，
    先用时长（秒）记一笔 `kind=watch`，收尾时刻才落在「看完」之后。
+   11-15 18:00 老板补：「然后视频时长最大计算 10 分钟」→ 记进节奏的时长封顶
+   600 秒（`WATCH_CAP_SEC`），原始片长仍写进 `raw_sec` 备查。
 
 1. **巡更开门**（默认）：rrule 是死的（整点 `BYMINUTE=0`），触发后先随机等 0–10 分钟再动手，
    三角分布、峰值 0 —— 多数几乎准点，偶尔拖到接近上限，和夜班保安一个样。
@@ -28,6 +30,7 @@ from bili_radar.core import die, state_dir
 
 MAX_MIN = 60
 MAX_WATCH_SEC = 7200
+WATCH_CAP_SEC = 600   # 节奏里「视频时长」最多按 10 分钟计（老板 11-15 18:00）
 LOG_NAME = "jitter-log.jsonl"
 KIND_OPEN = "open"
 KIND_WATCH = "watch"
@@ -66,12 +69,14 @@ def fmt_watch(sec: int) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
-def log_watch(sec: int, slept: bool) -> None:
-    """记一笔「看这条花了多久」：kind=watch，dur_sec=视频时长。"""
+def log_watch(sec: int, slept: bool, raw_sec=None) -> None:
+    """记一笔「看这条花了多久」：kind=watch，dur_sec=计入节奏的时长（已按 600 秒封顶）。"""
     d = state_dir()
     d.mkdir(parents=True, exist_ok=True)
     row = {"ts": datetime.now().astimezone().isoformat(timespec="seconds"),
            "kind": KIND_WATCH, "dur_sec": int(sec), "slept": slept}
+    if raw_sec is not None and int(raw_sec) != int(sec):
+        row["raw_sec"] = int(raw_sec)
     with (d / LOG_NAME).open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -89,11 +94,13 @@ def cmd_jitter(a) -> None:
             die("--watch（看片计时）不能和 --rest / --close 同时用")
         if not 0 < watch <= MAX_WATCH_SEC:
             die(f"--watch 要 1–{MAX_WATCH_SEC} 秒：{watch}")
+        capped = min(watch, WATCH_CAP_SEC)   # 只看表、不多睡：超过 10 分钟的片按 600 秒计
         if a.sleep:
-            time.sleep(watch)
-        log_watch(watch, bool(a.sleep))
-        print(json.dumps({"kind": KIND_WATCH, "dur_sec": watch,
-                          "dur_human": fmt_watch(watch), "slept": bool(a.sleep)},
+            time.sleep(capped)
+        log_watch(capped, bool(a.sleep), raw_sec=watch)
+        print(json.dumps({"kind": KIND_WATCH, "dur_sec": capped,
+                          "dur_human": fmt_watch(capped), "raw_sec": watch,
+                          "capped": capped != watch, "slept": bool(a.sleep)},
                          ensure_ascii=False))
         return
     if close:

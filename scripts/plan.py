@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
-"""plan.py —— 下一次什么时候醒（节奏只有一条：看完一条歇 1–10 分钟接着看下一条）。
+"""plan.py —— 下一次什么时候醒（节奏只有一条：看完一条歇 1–3 分钟接着看下一条）。
 
 口径演变（都是老板的话）：
 - 13:14「不要设定阈值。你规划好刷视频的间隔就行了」
 - 16:0x「你循完一次后自动设定下次唤醒时间不就行了？」→ 醒点自己写，不贴整点
 - 16:2x「掷一个 50–120 分钟的随机间隔？你是不是又理解错了？」→ 对，50–120 是我拍的。
-  老板给的节奏只有一条：上一次观看结束 + 1–10 分钟 = 下一次观看开始。
+  老板给的节奏只有一条：上一次观看结束 + 1–3 分钟 = 下一次观看开始。
 - 17:07「时间有点问题，是视频时长 + 一到十分钟。你这怎么变成了一到十分钟？」
   → 「观看结束」不是开门那一刻，是**看完那条**那一刻。所以看片要先走
   `radar.py jitter --watch <秒> --sleep` 把时长花掉，收尾（close）落在看完之后，
-  `next` 才等于「视频时长 + 1–10 分钟」。
+  `next` 才等于「视频时长 + 1–3 分钟」。
+
+- 11-15 18:00「间隔 1–10 分钟 → 1–3 分钟。然后视频时长最大计算 10 分钟」
+  → REST_MAX 10→3；看片计时另按 600 秒封顶（jitter.py 的 WATCH_CAP_SEC）。
 
 所以这里不排班、不打分，只做两件事：
-1. `next`：拿「上一次还在 B 站」的时刻 + 1–10 分钟，算出下一次醒点，并给一条一次性闹钟的 rrule；
+1. `next`：拿「上一次还在 B 站」的时刻 + 1–3 分钟，算出下一次醒点，并给一条一次性闹钟的 rrule；
 2. `gate`：同一分钟内重复触发就跳过（只防抖，不排班）。
 """
 import argparse
@@ -31,7 +34,7 @@ from bili_radar.core import state_dir
 TZ = timezone(timedelta(hours=8))
 
 REST_MIN = 1
-REST_MAX = 10
+REST_MAX = 3   # 11-15 18:00 老板：间隔 1–10 分钟 → 1–3 分钟
 LOG_NAME = "jitter-log.jsonl"
 
 
@@ -39,7 +42,7 @@ def last_seen():
     """上一次「还在 B 站」的时刻：`state/jitter-log.jsonl` 里最后一条记录。
 
     开门（open）、串内歇息（rest）、收尾（close）都算 —— 因为节奏只有一条：
-    上一次观看结束之后歇 1–10 分钟，下一次观看开始。
+    上一次观看结束之后歇 1–3 分钟，下一次观看开始。
     """
     f = state_dir() / LOG_NAME
     if not f.is_file():
@@ -63,7 +66,7 @@ def last_scan():
 
 
 def rest_min(rng=None) -> int:
-    """看完一条之后歇几分钟：1–10（老板 11-13 定死的区间，别再加别的间隔）。"""
+    """看完一条之后歇几分钟：1–3（11-13 定的区间是 1–10，11-15 18:00 收紧到 1–3）。"""
     rng = rng or random
     return rng.randint(REST_MIN, REST_MAX)
 
@@ -79,7 +82,7 @@ def _ceil_minute(dt):
 
 
 def next_wake(now=None, rng=None):
-    """下一次醒来的时刻 = 上一次还在 B 站的时刻 + 1–10 分钟。"""
+    """下一次醒来的时刻 = 上一次还在 B 站的时刻 + 1–3 分钟。"""
     now = now or datetime.now(TZ)
     base = last_seen() or now
     wake = _ceil_minute(base + timedelta(minutes=rest_min(rng)))
@@ -127,7 +130,7 @@ def main():
     ap = argparse.ArgumentParser(description="下次什么时候醒（plan.py）")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("gate", help="这一巡该不该开刷（防重复触发，JSON）")
-    sub.add_parser("next", help="算下一次醒点（上一次记录 + 1–10 分钟）并给一次性 rrule")
+    sub.add_parser("next", help="算下一次醒点（上一次记录 + 1–3 分钟）并给一次性 rrule")
     sub.add_parser("describe", help="当前节奏的一句话说明")
     a = ap.parse_args()
 

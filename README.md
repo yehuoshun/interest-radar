@@ -3,7 +3,7 @@
 > 24 小时值班，**一巡只挑一条真正值得占用你十分钟的东西**。
 > 不是搜索机器人 —— 判据只有一句话：**这条值不值得你花十分钟看？**
 
-一个 agent 技能（本机 DSH 直接可用，也能当纯 CLI 跑；2026-11-13 去掉 OpenClaw 依赖）：**刷 B站首页推荐流 → 一巡挑一条真读字幕 → 觉得值就点赞/评论，觉得值得你看就 @ 主号 → 收尾，按「视频时长 + 1–10 分钟」定下一次醒点**。
+一个 agent 技能（本机 DSH 直接可用，也能当纯 CLI 跑；2026-11-13 去掉 OpenClaw 依赖）：**刷 B站首页推荐流 → 一巡挑一条真读字幕 → 觉得值就点赞/评论，觉得值得你看就 @ 主号 → 收尾，按「视频时长 + 1–3 分钟」定下一次醒点**。
 
 > 用法：**给 agent 看的操作手册在 [`SKILL.md`](SKILL.md)**（命令速查、值班流程、报告格式）；**判据与红线在 [`templates/charter.md`](templates/charter.md)**（一巡一条、已赞跳过、不设阈值/配额）。**参数地图在 [`PARAMETERS.md`](PARAMETERS.md)**（全参数接线审计——归谁管、怎么生效、漂移/死配置清单）。本 README 只讲它是什么、为什么这么设计。
 
@@ -23,7 +23,7 @@
 | **宁缺勿滥，一天 0 条是合法输出** | 假阳性是在偷你的注意力，比漏一条贵得多 |
 | **写操作分档** | 读：无门槛；写：每档都有代码闸（开关 + `--yes` + 敏感词 + 频控 + 白名单）。只 @ 主号、只私信白名单；**自发评论 2026-10-27 老板放权**（不强制 @；11-13 17:43 频控归零 = 不限，只剩冷却 60 秒与同一视频一次） |
 | **不设条数配额** | 判断的是内容，不是钟点；一巡 0 互动合法，不为产量凑数 |
-| **一巡一条、把时长花掉** | 视频时长 + 1–10 分钟是节奏；一轮读两条会把节奏压平（11-13 19:54 老板） |
+| **一巡一条、把时长花掉** | 视频时长 + 1–3 分钟是节奏；一轮读两条会把节奏压平（11-13 19:54 老板） |
 | **判断归模型，算术归脚本** | 点赞/评论/@ 是判断，判重/权重/冷却/频控是算术 —— 后者别让模型心算 |
 
 ## 实测状态（截至 2026-10-27 · commit e028c07）
@@ -84,10 +84,10 @@ python scripts/radar.py search --kw "关键词" --days 7
 python scripts/schedule.py --every-minutes 10  # 备份写法；当前用 plan.py next 的一次性闹钟
 python scripts/schedule.py valley              # 打印谷时模式的 DTSTART+RRULE 与 prompt
 python scripts/schedule.py all --rrule-only    # 全天每小时，只要 rrule
-python scripts/schedule.py all --minute 0      # 整点排班（备用；当前醒点由 plan.py next 按「上一次 + 1–10 分钟」自己定）
+python scripts/schedule.py all --minute 0      # 整点排班（备用；当前醒点由 plan.py next 按「上一次 + 1–3 分钟」自己定）
 python scripts/plan.py gate                    # 只防同一分钟重复触发（不是排班）
-python scripts/radar.py jitter --watch 414 --sleep  # 看片计时：这条 6:54 → 花掉 414 秒
-python scripts/plan.py next                    # 下一次醒点（收尾 + 1–10 分钟）+ 一次性 rrule
+python scripts/radar.py jitter --watch 414 --sleep  # 看片计时：这条 6:54 → 花掉 414 秒（超 10 分钟的片按 600 秒封顶）
+python scripts/plan.py next                    # 下一次醒点（收尾 + 1–3 分钟）+ 一次性 rrule
 python scripts/plan.py describe                 # 当前节奏的一句话说明
 python scripts/schedule.py valley --minute 43  # 换分钟偏移（默认 17）
 python scripts/schedule.py all --random-minute # 备选：随机开巡分钟，每巡重掷，下次触发至少 +25 分钟

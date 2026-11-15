@@ -71,15 +71,15 @@ class TestOnsiteTrigger(unittest.TestCase):
         self.assertEqual((start.minute, start.second), (0, 0))
         self.assertGreater(start, datetime.now(sched.TZ).replace(tzinfo=None))
 
-    def test_jitter_default_is_ten_minutes(self):
+    def test_jitter_default_is_three_minutes(self):
         from bili_radar import jitter as j
         from bili_radar.cli import build_parser
 
         self.assertEqual(j.MAX_MIN, 60)          # 库层硬上限
         self.assertLessEqual(j.pick_delay(10), 600)
-        # CLI 默认就是老板口径的 10 分钟
+        # CLI 默认就是老板口径的 3 分钟（11-15 18:00 从 10 收紧）
         ns = build_parser().parse_args(["jitter"])
-        self.assertEqual(ns.max_min, 10)
+        self.assertEqual(ns.max_min, 3)
 
 
 class TestRandomMinute(unittest.TestCase):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""test_plan.py —— 节奏只有一条：上一次观看结束 + 1–10 分钟，下次观看开始。"""
+"""test_plan.py —— 节奏只有一条：上一次观看结束 + 1–3 分钟，下次观看开始。"""
 import json
 import pathlib
 import tempfile
@@ -26,13 +26,13 @@ class TestPlan(unittest.TestCase):
         with (self.dir / p.LOG_NAME).open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-    def test_rest_bounds_are_one_to_ten(self):
-        """歇息区间就是老板说的 1–10 分钟，没有第二套间隔。"""
-        self.assertEqual((p.REST_MIN, p.REST_MAX), (1, 10))
+    def test_rest_bounds_are_one_to_three(self):
+        """歇息区间就是老板 11-15 18:00 收紧后的 1–3 分钟，没有第二套间隔。"""
+        self.assertEqual((p.REST_MIN, p.REST_MAX), (1, 3))
         for _ in range(300):
             v = p.rest_min()
             self.assertGreaterEqual(v, 1)
-            self.assertLessEqual(v, 10)
+            self.assertLessEqual(v, 3)
 
     def test_rest_min_uses_randint(self):
         """歇息用整数分钟均匀掷（不是三角分布、不是 50–120 那种拍的区间）。"""
@@ -44,7 +44,7 @@ class TestPlan(unittest.TestCase):
                 return 7
 
         self.assertEqual(p.rest_min(Rng()), 7)
-        self.assertEqual(seen["bounds"], (1, 10))
+        self.assertEqual(seen["bounds"], (1, 3))
 
     def test_last_seen_counts_every_kind(self):
         """开门、歇息、收尾都算「还在 B 站」：节奏是连续的，不分串内串外。"""
@@ -55,7 +55,7 @@ class TestPlan(unittest.TestCase):
         self.assertEqual(p.last_seen(), now - timedelta(minutes=12))
 
     def test_next_wake_is_last_seen_plus_rest(self):
-        """醒点 = 上一次记录 + 掷出来的 1–10 分钟（16:18 收尾 + 4 分钟 → 16:22）。"""
+        """醒点 = 上一次记录 + 掷出来的 1–3 分钟（16:18 收尾 + 4 分钟 → 16:22）。"""
         now = datetime(2026, 11, 13, 16, 20, tzinfo=p.TZ)
         self._log(now - timedelta(minutes=2), "close")
 

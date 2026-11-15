@@ -1,6 +1,6 @@
 ---
 name: interest-radar
-description: 值班式兴趣雷达——24 小时刷 B站首页推荐流，一巡只读一条视频，觉得值就点赞/评论/@主号，按「视频时长 + 1–10 分钟」定下一次醒点。当用户要求「跑一轮兴趣雷达 / 今天的雷达 / 继续值班 / 每天帮我筛 B站 / 给我推值得看的东西 / 更新兴趣档案 / 记录反馈」时使用。判断口径与红线见 state/charter.md。
+description: 值班式兴趣雷达——24 小时刷 B站首页推荐流，一巡只读一条视频，觉得值就点赞/评论/@主号，按「视频时长 + 1–3 分钟」定下一次醒点。当用户要求「跑一轮兴趣雷达 / 今天的雷达 / 继续值班 / 每天帮我筛 B站 / 给我推值得看的东西 / 更新兴趣档案 / 记录反馈」时使用。判断口径与红线见 state/charter.md。
 ---
 
 # 兴趣雷达（interest-radar）
@@ -66,7 +66,7 @@ python $R reply --bv BV1xxx                        # **@ 主号 只走这个**�
 python $R feed --num 12 --rounds 1                 # 刷首页推荐流（让算法决定看什么，不按关键词挖）
 python $R like --bv BV1xxx --yes                   # 点赞（--cancel 取消；同一视频只点一次）
 python $R jitter --watch 414 --sleep               # 看片计时：这条 6:54 → 花掉 414 秒（kind=watch）
-python $R jitter --min-min 1 --max-min 10 --rest --sleep   # 看完一条歇 1–10 分钟（kind=rest，不占巡更间隔）
+python $R jitter --min-min 1 --max-min 3 --rest --sleep   # 看完一条歇 1–10 分钟（kind=rest，不占巡更间隔）
 python $R jitter --close                                 # 收尾打卡（kind=close；下一巡间隔从这一刻算）
 python $R notify --new-only                         # 谁找我：@我的 / 回复我的（新于上次的）
 python $R dm --new-only                            # 私信：主号会话里新于水位线的（只读不回）
@@ -87,12 +87,12 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 刷着玩模式（2026-11-13 老板改口径）
 
-**作息**：24 小时值班，**节奏只有一条**（11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」；「掷一个 50–120 分钟的随机间隔？你是不是又理解错了？」→ 50–120 是我拍错的，已经删了）：视频时长 + 1–10 分钟 = 下一次观看开始（11-13 17:07 老板「是视频时长 + 一到十分钟。你这怎么变成了一到十分钟？」→ 看片先用 `radar.py jitter --watch <秒> --sleep` 把时长真的花掉，收尾打卡才落在「看完」之后）。每次收尾后 `python scripts/plan.py next` 按这条算醒点，写一个**一次性**闹钟 `RRULE:FREQ=DAILY;COUNT=1` 回活任务 —— 醒点不贴整点；`gate` 只防同一分钟重复触发；白天轻、夜里重；**一巡只读一条视频**（11-13 19:54 老板「不是有规定一次看一条视频吗」）——读完这一条就收尾 `radar.py jitter --close` 打一笔卡，下一条留给下一巡，多数时候只是看，0 互动是正常结果。
+**作息**：24 小时值班，**节奏只有一条**（11-13 老板「每看完一条，歇 1–10 分钟接着看下一条」；「掷一个 50–120 分钟的随机间隔？你是不是又理解错了？」→ 50–120 是我拍错的，已经删了）：视频时长 + 1–3 分钟 = 下一次观看开始（11-15 18:00 老板把间隔从 1–10 收紧到 1–3；11-13 17:07 老板「是视频时长 + 一到十分钟。你这怎么变成了一到十分钟？」→ 看片先用 `radar.py jitter --watch <秒> --sleep` 把时长真的花掉，收尾打卡才落在「看完」之后）。每次收尾后 `python scripts/plan.py next` 按这条算醒点，写一个**一次性**闹钟 `RRULE:FREQ=DAILY;COUNT=1` 回活任务 —— 醒点不贴整点；`gate` 只防同一分钟重复触发；白天轻、夜里重；**一巡只读一条视频**（11-13 19:54 老板「不是有规定一次看一条视频吗」）——读完这一条就收尾 `radar.py jitter --close` 打一笔卡，下一条留给下一巡，多数时候只是看，0 互动是正常结果。
 **写操作不设条数配额**（11-13 17:43 老板「其实限制可以去掉」→ `like` / `comment` / `mention` 的 `per_hour`、`per_day` 全归零；`per_round` / `min_score` / `template` 是死配置）。真闸只剩：**写冷却 60 秒**、**同一视频只发一次**、连续 3 次失败自动关闸。**别为了产量去点去评。**
 
-**看片计时**：每看一条先 `radar.py jitter --watch <秒> --sleep`（6:54 → 414、16:20 → 980、21:48 → 1308），记 `kind=watch`；这是节奏里「视频时长」那一段，不记就等于没看片。
+**看片计时**：每看一条先 `radar.py jitter --watch <秒> --sleep`（6:54 → 414、16:20 → 980、21:48 → 封顶 600，原始时长记 `raw_sec`；11-15 18:00 老板「视频时长最大计算 10 分钟」），记 `kind=watch`；这是节奏里「视频时长」那一段，不记就等于没看片。
 
-**歇息**：那 1–10 分钟是**两次巡检之间**的间隔，不是同一轮里连刷两条 —— 收尾后由 `plan.py next` 按「+1–10 分钟」直接算进下一次醒点。要单独留一笔歇息账用 `radar.py jitter --min-min 1 --max-min 10 --rest`（记 `kind=rest`；**别加 `--sleep`**，等待发生在两次巡检之间）。**收尾打卡**：`radar.py jitter --close` 记 `kind=close`；`plan.py` 认 open / watch / rest / close 全部记录当「上一次还在 B 站」，因为节奏是连续的一条线，不分串内串外。开门前只过 `python scripts/plan.py gate`（只挡「同一分钟重复触发」），`allowed:false` 就跳过这一巡。
+**歇息**：那 1–3 分钟是**两次巡检之间**的间隔，不是同一轮里连刷两条 —— 收尾后由 `plan.py next` 按「+1–3 分钟」直接算进下一次醒点。要单独留一笔歇息账用 `radar.py jitter --min-min 1 --max-min 3 --rest`（记 `kind=rest`；**别加 `--sleep`**，等待发生在两次巡检之间）。**收尾打卡**：`radar.py jitter --close` 记 `kind=close`；`plan.py` 认 open / watch / rest / close 全部记录当「上一次还在 B 站」，因为节奏是连续的一条线，不分串内串外。开门前只过 `python scripts/plan.py gate`（只挡「同一分钟重复触发」），`allowed:false` 就跳过这一巡。
 
 （备选：`schedule.py --random-minute` 能每巡重掷一个随机分钟、把触发本身挪开整点，代码和单测都留着，但当前口径不用。）
 
@@ -120,7 +120,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
    **不扫 `seen.md` 判「是不是读过」**（11-14 老板：已点赞的跳过，不用扫本地文件判断已读）；`seen.md` 只由 `reply` 自己写 @ 去重。
 5. **真读一条**：`sub BV1xxx`（不看摘要下判断；`NO_SUBTITLE` → 跳过）。**一巡只真读一条**，读完这条就收尾，不在同一巡里连刷两条。
    - 读字幕后仍难判断、或无字幕但值得赌一眼 → 可抽帧 `python scripts/frames.py --bv BV1xxx`（补充不是替代；每巡 ≤2 条）。
-6. **把时长花掉**：`jitter --watch <秒> --sleep`（6:54 → 414；16:20 → 980；21:48 → 1308）。
+6. **把时长花掉**：`jitter --watch <秒> --sleep`（6:54 → 414；16:20 → 980；21:48 → 按 600 封顶）。
 7. **按判断动手** —— **不设分数阈值、不设条数配额**（唯一标准：值不值得他花十分钟看）：
    - 觉得好 → `like --bv BV1xxx --yes`
    - 有话要说 → `comment --bv BV1xxx --text "…" --yes`（自发评论，不写 mention-log，**不走 mention 闸**）
@@ -145,7 +145,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 ## 触发时刻随机化（2026-10-27）
 
-雷达**自己上闹钟**：`python scripts/plan.py next` 输出 `wake_at` + 一次性 rrule（`FREQ=DAILY;COUNT=1`），收尾后写回活任务（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」；醒点 = 收尾时刻（= 看完最后一条那一刻，时长已由 `jitter --watch` 花掉）+ 1–10 分钟）。「每小时/每天几点」那种排班只剩 `scripts/schedule.py all` 当备用，当前口径不用。`plan.py gate` 只防同一分钟重复触发（11-13 老板「不要设定阈值」）。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
+雷达**自己上闹钟**：`python scripts/plan.py next` 输出 `wake_at` + 一次性 rrule（`FREQ=DAILY;COUNT=1`），收尾后写回活任务（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」；醒点 = 收尾时刻（= 看完最后一条那一刻，时长已由 `jitter --watch` 花掉）+ 1–3 分钟）。「每小时/每天几点」那种排班只剩 `scripts/schedule.py all` 当备用，当前口径不用。`plan.py gate` 只防同一分钟重复触发（11-13 老板「不要设定阈值」）。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
 
 ## cookie 失效自救（扫码登录，2026-10-27 起）
 
@@ -331,7 +331,7 @@ state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>
 
 ## 定时（DSH 的 schedule 工具）
 
-本机没有 `openclaw cron`（原 `scripts/apply-cron.py` 已删）。**当前醒点由 `plan.py next` 打印**（收尾 + 1–10 分钟，一次性 `FREQ=DAILY;COUNT=1`）；`schedule.py` 只剩备份排班，参数是 `DTSTART` + `RRULE` 两行加一段 prompt：
+本机没有 `openclaw cron`（原 `scripts/apply-cron.py` 已删）。**当前醒点由 `plan.py next` 打印**（收尾 + 1–3 分钟，一次性 `FREQ=DAILY;COUNT=1`）；`schedule.py` 只剩备份排班，参数是 `DTSTART` + `RRULE` 两行加一段 prompt：
 
 ```bash
 python scripts/schedule.py valley        # 备份：谷时模式的 rrule + prompt
@@ -348,7 +348,7 @@ python scripts/schedule.py all --random-minute  # 备选：随机分钟，每巡
 - **valley（梁文谷）**：只在 DeepSeek 谷时的小时跑（`BYHOUR=0,1,2,3,4,5,6,7,8,12,13,18,19,20,21,22,23`）——
   工作日 9-12/14-18 是高峰，其余含周末都是谷时
 - **固定间隔（`--every-minutes N`）**：`RRULE:FREQ=MINUTELY;INTERVAL=N`。这是**备份写法**，当前口径不用
-  （现在每巡结束用 `plan.py next` 上一次性的「+1–10 分钟」闹钟）。DSH 的 rrule 子集里 `MINUTELY`/`HOURLY` **不接受 BY 部件**，
+  （现在每巡结束用 `plan.py next` 上一次性的「+1–3 分钟」闹钟）。DSH 的 rrule 子集里 `MINUTELY`/`HOURLY` **不接受 BY 部件**，
   所以间隔模式没有 `BYHOUR`/`BYMINUTE`，`DTSTART` 只是对齐起点。间隔必须大于单轮预算（现在按 8 分钟收尾），
   否则会排队撞轮
 - 建任务时：`target=this_session`（提醒式）或 `new_once`（每次开新会话写独立报告）；

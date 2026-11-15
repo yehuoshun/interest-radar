@@ -93,10 +93,10 @@ def build_parser():
     s.set_defaults(fn=cmd_like)
 
     s = sub.add_parser("jitter")
-    s.add_argument("--max-min", dest="max_min", type=int, default=10,
-                   help="最多抖几分钟（默认 10；min-min=0 时三角分布、多数接近 0，否则均匀分布）")
+    s.add_argument("--max-min", dest="max_min", type=int, default=3,
+                   help="最多抖几分钟（默认 3；min-min=0 时三角分布、多数接近 0，否则均匀分布）")
     s.add_argument("--min-min", dest="min_min", type=int, default=0,
-                   help="最少等几分钟（默认 0；串内歇息用 --min-min 1 --max-min 10 --rest）")
+                   help="最少等几分钟（默认 0；串内歇息用 --min-min 1 --max-min 3 --rest）")
     s.add_argument("--rest", action="store_true",
                    help="标成串内歇息（jitter-log 的 kind=rest，不算巡更间隔）")
     s.add_argument("--close", action="store_true",
