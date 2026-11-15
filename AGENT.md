@@ -75,7 +75,7 @@ graph TD
 | `bili_radar/notify.py` | 198 | 通知 / 私信读写 | `cmd_msg:18` `cmd_dm:73` `cmd_notify:135` `radar_unread:198` |
 | `bili_radar/dynamic.py` | 77 | 动态发/删 | `cmd_dynamic:15` `cmd_dynamic_del:59` |
 | `bili_radar/like.py` | 61 | 点赞 / 取消赞（2026-11-13） | `cmd_like:23` |
-| `bili_radar/jitter.py` | 103 | 巡更抖动 + 看片计时 + 串内歇息 + 收尾打卡（2026-11-13）：min=0 用三角分布（峰值 0），min>0 用均匀分布；`--watch <秒>` 把视频时长真的花掉；记账 `state/jitter-log.jsonl` 带 `kind`（open/watch/rest/close） | `MAX_MIN:29` `MAX_WATCH_SEC:30` `KIND_OPEN:32` `KIND_WATCH:33` `KIND_REST:34` `KIND_CLOSE:35` `pick_delay:44` `log_delay:51` `fmt_watch:62` `log_watch:69` `cmd_jitter:79` |
+| `bili_radar/jitter.py` | 120 | 巡更抖动 + 看片计时 + 串内歇息 + 收尾打卡（2026-11-13）：min=0 用三角分布（峰值 0），min>0 用均匀分布；`--watch <秒>` 把视频时长真的花掉（超 600 秒只按 600 计，原片长写 `raw_sec`）；记账 `state/jitter-log.jsonl` 带 `kind`（open/watch/rest/close） | `MAX_MIN:31` `MAX_WATCH_SEC:32` `WATCH_CAP_SEC:33` `KIND_OPEN:35` `KIND_WATCH:36` `KIND_REST:37` `KIND_CLOSE:38` `pick_delay:47` `log_delay:54` `fmt_watch:65` `log_watch:72` `cmd_jitter:84` |
 | `bili_radar/feedback.py` | 138 | 反馈/统计/活跃度 | `cmd_feedback:12` `cmd_stats:43` `cmd_engagement:65` |
 | `bili_radar/media/frames.py` | 365 | 抽帧流程 | `http_get_json:50` `wbi_keys:73` `wbi_sign:83` `video_info:89` `playurl:100` `subtitles:120` `fmt_ts:141` `extract_frame:146` `extract_frame_local:159` `download_video:171` `pick_points:203` `build_grid:216` `main:259` |
 | `bili_radar/media/mp4_sparse.py` | 202 | moov 解析 + 稀疏下载 | `_fetch_range:20` `_parse_boxes:28` `_find_box:51` `_table:61` `_SparsePlan:78` `sparse_plan:145` `build_sparse:184` |
@@ -98,7 +98,7 @@ graph TD
 | `feed`（首页推荐流，只读） | 80 | `cmd_feed` | `browse.py:70` |
 | `liked`（平台侧是否已赞，只读） | 85 | `cmd_liked` | `browse.py:111` |
 | `like`（点赞/取消赞） | 89 | `cmd_like` | `like.py:23` |
-| `jitter`（巡更抖动 / 看片计时 / 串内歇息 / 收尾打卡） | 95 | `cmd_jitter` | `jitter.py:79`（`--watch <秒>` `--min-min` `--rest` `--close`） |
+| `jitter`（巡更抖动 / 看片计时 / 串内歇息 / 收尾打卡） | 95 | `cmd_jitter` | `jitter.py:84`（`--watch <秒>` `--min-min` `--rest` `--close`） |
 | `check-reply`（匿名可见性） | 109 | `cmd_check_reply` → `visible_anon` | `comment.py:373` |
 | `rate`（看/改频控） | 114 | `cmd_rate` | `comment.py:142` |
 | `feedback` | 120 | `cmd_feedback` | `feedback.py:12` |
@@ -240,7 +240,7 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | `test_draft.py` | 草稿状态机 | 入稿校验 / 同人 30 天 / 水军昵称拒 / 24h 过期 / 审批 / 失败计数 |
 | `test_engagement.py` | 活跃度三分支 + 窗口 | 5 例 |
 | `test_frames_plan.py` | `_SparsePlan` sample→offset 映射（stts/stsc 坑） | 5 例 |
-| `test_jitter.py` | 抖动范围 / 干跑不睡 / 越界拒绝 / 记账 / 歇息下限与 kind / min>max 拒绝 / 收尾打卡不等待 / rest 与 close 互斥 / 看片计时落 dur_sec / watch 越界拒绝 / watch 与 rest・close 互斥 / 时长格式化 | 12 例 |
+| `test_jitter.py` | 抖动范围 / 干跑不睡 / 越界拒绝 / 记账 / 歇息下限与 kind / min>max 拒绝 / 收尾打卡不等待 / rest 与 close 互斥 / 看片计时落 dur_sec / watch 越界拒绝 / watch 与 rest・close 互斥 / 看片 600 秒封顶 / 短于 10 分钟不封顶 / 时长格式化 | 14 例 |
 | `test_like.py` | 点赞闸（开关关 / 干跑不落账 / 赞过再赞 / `--cancel` 绕同一视频闸） | 4 例 |
 | `test_liked.py` | 平台已赞查询（true / false / parser） | 3 例 |
 | `test_plan.py` | 歇息区间 1–10 分钟 / 用 `randint` 掷 / `last_seen` 认 open・rest・close 三种记录 / `next_wake` = 上一条 + 1–10 / 不排过去的闹钟 / `wake_rrule` 一次性 / `gate` 只挡同一分钟 | 7 例 |

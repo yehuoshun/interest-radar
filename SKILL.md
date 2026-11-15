@@ -254,12 +254,12 @@ scripts/
 │   ├── notify.py     通知与私信（198 行）
 │   ├── dynamic.py    动态发/删（77 行）
 │   ├── like.py       点赞 / 取消赞（61 行）
-│   ├── jitter.py     巡更抖动 / 看片计时 / 串内歇息 / 收尾打卡（103 行）
+│   ├── jitter.py     巡更抖动 / 看片计时 / 串内歇息 / 收尾打卡（120 行）
 │   ├── feedback.py   反馈/统计/活跃度（138 行）
 │   └── media/
 │       ├── frames.py      抽帧流程（365 行）
 │       └── mp4_sparse.py  mp4 解析+稀疏下载（202 行）
-└── tests/            # 160 用例（unittest，零网络）
+└── tests/            # 163 用例（unittest，零网络）
 ```
 
 **规矩**：新功能往对应域模块放（禁止再长大文件）；`domains` 之间不互相 import（只依赖 core/client/gates）；
@@ -273,7 +273,7 @@ scripts/
 cd <skill>/scripts && python -m unittest discover tests -v
 ```
 
-160 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
+163 个用例覆盖：请求层退避/熔断、写冷却、draft 状态机（入稿校验/同人限频/水军昵称/过期/审批/失败计数）、
 engagement 三分支、dm 水位推进（自己消息不推水位）、_SparsePlan 的 sample→offset 映射（stts/stsc 坑）、
 state_dir / cookie_path 路径口径（默认 `<仓库根>/state`、`<工作区>/config/bilibili_cookies.txt`，也认 `bilibili.txt`；不猜 skills/ 标记）、
 `liked` 平台已赞探测（已赞 → 巡更跳过）。
