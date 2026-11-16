@@ -78,7 +78,7 @@
 | `write.cooldown_sec` | 60 | comment.py:99/269、dynamic.py:41、notify.py:51 |
 | `write.dynamic.enabled / per_hour / per_day / forbid` | true / 0 / 3 / 词表 | dynamic.py:27、gates.py:79 |
 | `write.message.enabled / per_hour / per_day / allow_mid / forbid` | true / 0 / 5 / [主号] / 词表 | gates.py:79、notify.py（白名单硬闸） |
-| `write.comment.enabled / per_hour / per_day / same_video_once / forbid` | true / 0 / 0 / true / 词表 | gates.py:146、comment.py（per_hour 11-13 由 3 收到 1、17:43 再归零 = 不限：老板「其实限制可以去掉」） |
+| `write.comment.enabled / per_hour / per_day / same_video_once / forbid` | true / **1** / **10** / true / 词表 | gates.py:146-151（闸⑤）、comment.py（per_hour 11-13 由 3 收到 1、17:43 再归零 = 不限：老板「其实限制可以去掉」；**11-16 12:24 老板「降低写评论的频率」→ per_hour 0→1、per_day 0→10**，账本 chg-20261116-122456-74d8f3 / chg-20261116-122456-f7e0ec） |
 | `write.like.enabled / per_hour / per_day / same_video_once / forbid` | true / 0 / 0 / true / 词表 | gates.py:146、like.py（per_hour 11-13 由 6 收到 2、17:43 再归零 = 不限：老板「其实限制可以去掉」） |
 | 动态/私信 ≤200 字、评论 ≤200 字 | —— | 代码常量 🔒 |
 

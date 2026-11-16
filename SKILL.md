@@ -143,6 +143,8 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 
 两次**写操作**（@/评论/动态/私信/草稿批准）之间最短间隔 `write.cooldown_sec`（本机 config 60s；代码缺省 120s）——查 write-log + mention-log 里最后一次真发的 ts，不足就 die。**删动态不冷却**（纠错优先）；干跑不查（没真写）。读请求不设全局间隔（已有退避/熔断覆盖）。
 
+**评论频控（闸⑤，2026-11-16 12:24 老板「降低写评论的频率」）**：`write.comment.per_hour = 1`、`write.comment.per_day = 10`（`gates.py:146-151` 按 write-log 里 `kind=comment` 的最近 1 小时 / 24 小时计数，超了 die exit 11）。**被闸⑤挡住不算失败**：这一轮只点赞、报告里记一行「评论被频控挡」，照常 `jitter --close` + `plan.py next`；不许改短正文绕、不许重试、不许换号。点赞与 @ 不受这条限制。
+
 ## 触发时刻随机化（2026-10-27）
 
 雷达**自己上闹钟**：`python scripts/plan.py next` 输出 `wake_at` + 一次性 rrule（`FREQ=DAILY;COUNT=1`），收尾后写回活任务（11-13 老板「你循完一次后自动设定下次唤醒时间不就行了？」；醒点 = 收尾时刻（= 看完最后一条那一刻，时长已由 `jitter --watch` 花掉）+ 1–3 分钟）。「每小时/每天几点」那种排班只剩 `scripts/schedule.py all` 当备用，当前口径不用。`plan.py gate` 只防同一分钟重复触发（11-13 老板「不要设定阈值」）。**不做**「30% 今天不想看」（whale 版）：雷达是反馈回路，跳一轮 = 主号 @ 没人回 + 污染健康信号。
