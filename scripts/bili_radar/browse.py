@@ -143,6 +143,45 @@ def fetch_subtitle_text(cookie: str, bv: str, cid: int):
     return (text or None), pick.get("lan")
 
 
+DESC_MAX = 1200
+
+
+def _desc_fields(v, cap: int = DESC_MAX) -> dict:
+    """从 `view` 的返回里抠简介 + 简介里的链接。
+
+    2026-11-17 第 3 巡事故：feed 不带简介（字段只有 bvid/title/up/duration/play/danmaku/
+    like/reason/url），`sub` 原先只出字幕 —— 「安装包名、插件市场包名、GitHub 仓库、
+    文档链接」这些真正能照抄的东西全在简介里，整套管线把它漏了，于是把「没有可执行物」
+    当成了结论。**判 @ 之前必须先看简介**，不能拿片子里念的「地址都在简介」当结论。
+    """
+    desc = clean(v.get("desc") or "")
+    links = re.findall(r"https?://[^\s，。、；：！？）)\]】\"'<>]+", desc)
+    return {
+        "desc_chars": len(desc),
+        "desc_truncated": len(desc) > cap,
+        "desc": desc[:cap],
+        "desc_links": list(dict.fromkeys(links))[:20],
+    }
+
+
+def cmd_desc(a):
+    """视频简介（只取简介，不取字幕）—— 给「判之前先读简介」这一步单独用。"""
+    cookie = load_cookie()
+    v = get(f"{API}/x/web-interface/view?bvid={a.bv}", cookie).get("data") or {}
+    if not v:
+        die(f"取不到 {a.bv} 的 view（视频可能已删或不可见）")
+    out = {
+        "bvid": a.bv,
+        "title": clean(v.get("title")),
+        "up": (v.get("owner") or {}).get("name"),
+        "duration": v.get("duration"),
+        "pubdate": v.get("pubdate"),
+        "tname": v.get("tname"),
+    }
+    out.update(_desc_fields(v, getattr(a, "max_chars", 0) or DESC_MAX))
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
+
 def cmd_sub(a):
     cookie = load_cookie()
     v = get(f"{API}/x/web-interface/view?bvid={a.bv}", cookie)["data"]
@@ -159,7 +198,8 @@ def cmd_sub(a):
         if again != text:
             print(json.dumps({"bvid": a.bv, "title": title, "suspect": True,
                               "reason": f"语速异常 {rate:.1f} 字/秒，且两次结果不一致 —— 字幕不可信",
-                              "chars": len(text), "duration": dur}, ensure_ascii=False))
+                              "chars": len(text), "duration": dur,
+                              **_desc_fields(v)}, ensure_ascii=False))
             return
     print(json.dumps({
         "bvid": a.bv, "title": title, "lan": lan,
@@ -167,6 +207,7 @@ def cmd_sub(a):
         "rate": round(rate, 2), "suspect": suspect,
         "text": text[:a.max_chars],
         "truncated": len(text) > a.max_chars,
+        **_desc_fields(v),
     }, ensure_ascii=False))
 
 

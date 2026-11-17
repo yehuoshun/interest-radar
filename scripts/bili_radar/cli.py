@@ -28,8 +28,8 @@ from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fai
                    atomic_write_config, backup_config, mention_log, note_failure, write_log)
 
 # ── 域模块 ─────────────────────────────────────────────────────
-from bili_radar.browse import (cmd_check, cmd_feed, cmd_liked, cmd_search, cmd_seen, cmd_sub,
-                       fetch_subtitle_text)
+from bili_radar.browse import (cmd_check, cmd_desc, cmd_feed, cmd_liked, cmd_search, cmd_seen,
+                       cmd_sub, fetch_subtitle_text)
 from bili_radar.cfg_tool import (cmd_cfg_approve, cmd_cfg_proposals, cmd_cfg_propose,
                    cmd_cfg_reject, cmd_cfg_restore, cmd_cfg_set)
 from bili_radar.history import (append_change, append_observe, append_rollback,
@@ -64,6 +64,12 @@ def build_parser():
     s.add_argument("bv")
     s.add_argument("--max-chars", dest="max_chars", type=int, default=6000)
     s.set_defaults(fn=cmd_sub)
+
+    s = sub.add_parser("desc")
+    s.add_argument("bv")
+    s.add_argument("--max-chars", dest="max_chars", type=int, default=1200,
+                   help="简介最多打多少字（默认 1200；desc_chars 给全文长度）")
+    s.set_defaults(fn=cmd_desc)
 
     s = sub.add_parser("seen")
     s.add_argument("action", choices=["check", "add"])
