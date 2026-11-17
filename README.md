@@ -35,7 +35,8 @@
 | cookie 校验 | `check` | ✅ 实测 | 打印昵称即有效 |
 | 扫码登录 | `scripts/bili_qr_login.py` | ✅ 实测 | 二维码给本人扫，自动换 `SESSDATA` / `bili_jct` |
 | wbi 搜索 | `search` | ✅ 实测 | 数据中心出口 IP 会被风控（`v_voucher` / `-412`），家宽正常 |
-| 字幕全文 | `sub` | ✅ 实测 | 无字幕打 `NO_SUBTITLE`，不编 |
+| 字幕全文 | `sub` | ✅ 实测 | 无字幕打 `NO_SUBTITLE`，不编；输出末尾附 `desc`/`desc_links` |
+| 视频简介 | `desc` | ✅ 实测 | 安装包名/仓库/链接只在简介里，**判 @ 前必读**（11-17 抓出的漏读） |
 | 评论区快筛 | `comment-check` | ✅ 实测 | 只提示疑似 AI 水军，**不拦截** |
 | 抽帧看画面 | `scripts/frames.py` | ✅ 实测 | 稀疏下载，抽帧结果与全片 md5 一致 |
 | @我 / 回复我 | `notify` | ✅ 实测 | 水位线存 `notify-state.json` |
@@ -105,6 +106,7 @@ R=scripts/radar.py
 python $R check                                     # cookie 是否有效
 python $R search --kw "关键词" --num 20 --days 7    # 搜（order: pubdate|click|totalrank）
 python $R sub BV1xxxxxxxxx                          # 字幕全文；无字幕打印 NO_SUBTITLE
+python $R desc BV1xxxxxxxxx                         # 视频简介（判 @ 前必读）
 python $R liked --bv BV1xxx                         # 平台侧「我赞过没有」（已赞 → 跳过）
 python $R feed --num 12 --rounds 1                  # 首页推荐流，一巡挑一条
 python $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4

@@ -51,7 +51,8 @@ R=scripts/radar.py
 python $R check                                    # 校验 cookie（读字幕必须登录）
 python $R search --kw "关键词" --num 20 --days 7   # 搜（order: pubdate|click|totalrank）
 python $R comment-check --bv BV1xxx          # 评论区快筛（@ 分享前跑：疑似 AI 水军提示，不拦截）
-python $R sub BV1xxxxxxxxx                         # 字幕全文；无字幕打印 NO_SUBTITLE
+python $R sub BV1xxxxxxxxx                         # 字幕全文（末尾附 desc/desc_links）；无字幕打印 NO_SUBTITLE
+python $R desc BV1xxxxxxxxx                        # 视频简介（判 @ 前必读：安装包名/仓库/链接都在这）
 python scripts/frames.py --bv BV1xxx [--strip]      # 抽帧看画面：默认 3x3 九宫格；--strip 硬字幕长图（需字幕轨）
 python $R liked --bv BV1xxx                        # 平台侧「我赞过没有」（已赞 → 跳过；巡更判读依据）
 python $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
@@ -119,6 +120,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 4. **已赞的跳过**：挑中候选先 `liked --bv BV1xxx`；`"liked": true` 就换下一条，别花时间读。只查你打算看的那一两条，**不逐条查整屏**（12 次请求）。
    **不扫 `seen.md` 判「是不是读过」**（11-14 老板：已点赞的跳过，不用扫本地文件判断已读）；`seen.md` 只由 `reply` 自己写 @ 去重。
 5. **真读一条**：`sub BV1xxx`（不看摘要下判断；`NO_SUBTITLE` → 跳过）。**一巡只真读一条**，读完这条就收尾，不在同一巡里连刷两条。
+   - 🔴 **5b. 读简介**：`desc BV1xxx`（或 `sub` 输出里的 `desc`/`desc_links` 字段）。**判 @ 之前必读**：安装包名、插件市场名、GitHub 仓库、文档链接这些"能照抄的活"只在简介里，字幕经常只念一句"地址都在简介"。**不许拿片子里念的话当结论**（2026-11-17 第 3 巡事故：没读简介，把「没有可执行物」写进了判据）。简介写明"配音/画面由 AI 生成"的一并记进报告。
    - 读字幕后仍难判断、或无字幕但值得赌一眼 → 可抽帧 `python scripts/frames.py --bv BV1xxx`（补充不是替代；每巡 ≤2 条）。
 6. **把时长花掉**：`jitter --watch <秒> --sleep`（6:54 → 414；16:20 → 980；21:48 → 按 600 封顶）。
 7. **按判断动手** —— **不设分数阈值、不设条数配额**（唯一标准：值不值得他花十分钟看）：
