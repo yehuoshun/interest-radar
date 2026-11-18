@@ -31,7 +31,7 @@ from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fai
 from bili_radar.browse import (cmd_check, cmd_desc, cmd_feed, cmd_liked, cmd_search, cmd_seen,
                        cmd_sub, fetch_subtitle_text)
 from bili_radar.cfg_tool import (cmd_cfg_approve, cmd_cfg_proposals, cmd_cfg_propose,
-                   cmd_cfg_reject, cmd_cfg_restore, cmd_cfg_set)
+                   cmd_cfg_reject, cmd_cfg_restore, cmd_cfg_set, cmd_cfg_set_many)
 from bili_radar.history import (append_change, append_observe, append_rollback,
                    cmd_cfg_log, cmd_cfg_observe, diff_params)
 from bili_radar.comment import (anon_get, cmd_check_reply, cmd_comment, cmd_comment_check,
@@ -200,6 +200,16 @@ def build_parser():
     p.add_argument("--approved-by", dest="approved_by",
                    help="敏感项（cfg_tool.SENSITIVE）的老板批准原话——留痕入账本，否则只能走 propose/approve")
     p.set_defaults(fn=cmd_cfg_set)
+    p = csub.add_parser("set-many")
+    p.add_argument("items", nargs="+", metavar="段.键=值",
+                   help="一次改多项，如 mention.per_hour=0 write.comment.per_hour=1（只备份一次）")
+    p.add_argument("--yes", action="store_true", help="真正写入（默认干跑，只打印 before → after）")
+    p.add_argument("--reason", help="变更理由（逐项记入账本；只记人明说的，不编造）")
+    p.add_argument("--actor", choices=["boss", "agent"], default="agent",
+                   help="谁改的（默认 agent；老板亲自跑可写 boss）")
+    p.add_argument("--approved-by", dest="approved_by",
+                   help="含敏感项时必填的老板批准原话（留痕入账本）")
+    p.set_defaults(fn=cmd_cfg_set_many)
     p = csub.add_parser("restore")
     p.add_argument("name", nargs="?", help="备份文件名（config.json.bak-<ts>）")
     p.add_argument("--list", action="store_true", help="列出所有备份")
