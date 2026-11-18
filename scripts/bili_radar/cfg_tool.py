@@ -47,6 +47,8 @@ SENSITIVE = {
     # 草稿审批流
     "draft.enabled", "draft.per_12h", "draft.per_24h", "draft.forbid",
     "draft.reply_interval_days",
+    # B2 硬闸阈值（2026-11-18 补）：谁都能改就等于没有闸 —— 改它必须留老板批准
+    "budget.min_total_score",
 }
 
 PROPOSALS_FILE = "proposals.json"
@@ -56,7 +58,7 @@ KNOWN_NOTES = [
     (("mention", "per_round"), "💤 死配置：代码闸只读 per_hour/per_day，这个值改了不生效（PARAMETERS.md #6）"),
     (("mention", "min_score"), "💤 死配置：没有任何执行者知道这个值（PARAMETERS.md #4）"),
     (("mention", "template"), "💤 死配置：comment.py 用硬编码兜底文案（PARAMETERS.md #5）"),
-    (("budget", "min_total_score"), "✅ B2 硬闸阈值（2026-11-02 转正）：comment --score < 它会被 code 拒发"),
+    (("budget", "min_total_score"), "✅ B2 硬闸阈值（2026-11-02 转正；11-18 起属敏感项）：comment --score < 它会被 code 拒发"),
     (("budget", "max_push_per_round"), "⚠️ 漂移：SKILL.md 仍写「只推 0-3 条」，模型看到的真值是 0-3（PARAMETERS.md #2）"),
 ]
 # 特别提示：闸⑥实际生效的是 per_hour（rate 快捷面板也在改它）
@@ -88,41 +90,58 @@ def _navigate(cfg, parts):
     return node, key
 
 
-def _apply_set(d, parts, new_val, *, actor, reason=None, approved_by=None):
-    """执行一次真写：备份 → 原子写 → 写后校验 → 入账本（B1 后 set/approve 共用）。
+def _apply_batch(d, items, *, actor, reason=None, approved_by=None):
+    """一次真写多项：备份 → 原子写 → 写后校验 → 逐项入账本（set / approve / set-many 共用）。
 
-    返回 (bak, change_id)。任何一步失败都 die（备份失败拒提交、校验失败提示还原）。
+    items: [(parts, new_val), ...]（调用方已校验过路径与值）。
+    **只备份一次**：一个意图改多项时不把撤销槽吃光（11-14 那批 9 条命令占了 9 份）。
+    写入整体原子：任何一步失败都 die，备份里是可一键 restore 的旧值。
+    返回 (bak, [change_id, ...])。
     """
     cf = d / "config.json"
     bak = backup_config(d)
     if bak is None:
         die("备份 config.json 失败 —— 拒绝写入（备份失败不提交）")
-    state = {"before": None}
+    befores = {}
 
     def mutate(cfg2):
-        nd = cfg2
-        for p2 in parts[:-1]:
-            nd = nd[p2]
-        state["before"] = nd[parts[-1]]
-        nd[parts[-1]] = new_val
+        for i, (parts, new_val) in enumerate(items):
+            nd = cfg2
+            for p2 in parts[:-1]:
+                nd = nd[p2]
+            befores[i] = nd[parts[-1]]
+            nd[parts[-1]] = new_val
         return cfg2
 
     atomic_write_config(d, mutate)
-    # 写后重读校验：JSON 可解析 + 原路径还能导航到目标键
+    # 写后重读校验：JSON 可解析 + 每项都能按原路径读回新值
     try:
         chk = json.loads(cf.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001
+        die(f"写后校验失败：{e} —— 请 config restore {bak.name}")
+    for parts, new_val in items:
         cur = chk
         for p in parts[:-1]:
             cur = (cur or {}).get(p)
-        if not isinstance(cur, dict) or parts[-1] not in cur:
+        if not isinstance(cur, dict) or cur.get(parts[-1]) != new_val:
             die(f"写后校验失败：{'.'.join(parts)} 读不回 —— 配置可能损坏，请 config restore {bak.name}")
-    except Exception as e:  # noqa: BLE001
-        die(f"写后校验失败：{e} —— 请 config restore {bak.name}")
     from bili_radar.history import append_change
-    cid = append_change(d, actor=actor, param=".".join(parts),
-                         before=state["before"], after=new_val,
-                         reason=reason, approved_by=approved_by)
-    return bak, cid
+    cids = []
+    for i, (parts, new_val) in enumerate(items):
+        cids.append(append_change(d, actor=actor, param=".".join(parts),
+                                  before=befores.get(i), after=new_val,
+                                  reason=reason, approved_by=approved_by))
+    return bak, cids
+
+
+def _apply_set(d, parts, new_val, *, actor, reason=None, approved_by=None):
+    """执行一次真写（= 单项批次）：备份 → 原子写 → 写后校验 → 入账本。
+
+    返回 (bak, change_id)。任何一步失败都 die（备份失败拒提交、校验失败提示还原）。
+    """
+    bak, cids = _apply_batch(d, [(parts, new_val)], actor=actor,
+                             reason=reason, approved_by=approved_by)
+    return bak, cids[0]
 
 
 def _find_backups(d):
@@ -180,6 +199,84 @@ def cmd_cfg_set(a):
                           reason=getattr(a, "reason", None),
                           approved_by=approved_by)
     print(f"✅ 已写入 {a.path} = {new_val!r}（备份：{bak.name}；账本：{cid}）")
+
+
+def _parse_many_items(raw_items):
+    """解析 ["段.键=值", ...] → [(parts, new_val, old_val, path)]，并挡重复路径。
+
+    只解析、不写；路径不存在或格式不对立刻 die（干跑阶段就把错挑出来）。
+    """
+    cfg = read_config()
+    out, seen = [], set()
+    for raw in raw_items:
+        if "=" not in raw:
+            die(f"格式应为 <段.键>=<值>（得到：{raw!r}）")
+        path, val_raw = raw.split("=", 1)
+        path = path.strip()
+        parts = path.split(".")
+        if not (2 <= len(parts) <= 3):
+            die(f"路径应为 2-3 层 <段>.<键>，如 mention.per_hour（得到：{path}）")
+        if path in seen:
+            die(f"同一批里 {path} 出现两次 —— 一次只改一个值，别让谁覆盖谁看不出来")
+        seen.add(path)
+        node, key = _navigate(cfg, parts)
+        out.append((parts, _parse_value(val_raw), node[key], path))
+    return out
+
+
+def cmd_cfg_set_many(a):
+    """config set-many <段.键=值> [<段.键=值> ...] [--yes] —— 一次备份、一次原子写、逐项入账。
+
+    用于「一个意图改多项」：单条 config set 每条都备份，改 9 项就吃掉 9 个撤销槽
+    （11-14 那次正是如此）。这里只备份 1 份，写入仍整体原子（全成或全不成）。
+    """
+    d = state_dir()
+    cf = d / "config.json"
+    if not cf.exists():
+        die(f"没有 config.json：{cf}")
+
+    parsed = _parse_many_items(a.items)
+    todo, noop = [], []
+    for (parts, new_val, old_val, path) in parsed:
+        (noop if (type(new_val) is type(old_val) and new_val == old_val) else todo).append(
+            (parts, new_val, old_val, path))
+
+    for _p, _v, _o, path in noop:
+        print(f"… {path} 值未变，跳过")
+    for (parts, new_val, old_val, path) in todo:
+        for (t, k), note in KNOWN_NOTES:
+            if t == parts[0] and k == parts[-1]:
+                print(note)
+        if path in IMMEDIATE_EFFECT:
+            print(f"ℹ️ {IMMEDIATE_EFFECT[path]}")
+        print(f"💡 干跑：{path}：{old_val!r} → {new_val!r}")
+    if not todo:
+        print("全部无需修改 · 干跑结束")
+        return
+
+    sens = [path for (_p, _v, _o, path) in todo if path in SENSITIVE]
+    if sens:
+        print(f"🔒 敏感项 {len(sens)} 个：{', '.join(sens)} —— 真写需要老板批准")
+    print(f"     共 {len(todo)} 项；写入前只备份一次 config.json（保留最近 10 份），"
+          f"写错可用 config restore 一键还原")
+    if not a.yes:
+        print("（干跑：要真写请加 --yes）", file=sys.stderr)
+        return
+
+    approved_by = getattr(a, "approved_by", None)
+    if sens and not approved_by:
+        die("🔒 这批含敏感项 —— 必须老板批准才能直改：\n"
+            f"   {', '.join(sens)}\n"
+            "   加 --approved-by \"老板原话\"（批准留痕入账本）")
+    if approved_by:
+        print(f"🔒 敏感项批准已留痕：{approved_by}")
+
+    bak, cids = _apply_batch(d, [(p, v) for (p, v, _o, _pa) in todo],
+                             actor=getattr(a, "actor", "agent"),
+                             reason=getattr(a, "reason", None),
+                             approved_by=approved_by)
+    ids = cids[0] if len(cids) == 1 else f"{cids[0]} … {cids[-1]}"
+    print(f"✅ 已写入 {len(todo)} 项（备份：{bak.name}；账本 {len(cids)} 条：{ids}）")
 
 
 def cmd_cfg_restore(a):
