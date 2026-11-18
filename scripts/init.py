@@ -55,6 +55,10 @@ DEFAULT_CONFIG = {
                     "same_video_once": True, "forbid": []},
         "dynamic": {"enabled": False, "per_hour": 1, "per_day": 3, "forbid": []},
         "message": {"enabled": False, "per_day": 5, "allow_mid": [], "forbid": []},
+        # like：per_hour 不限（0 = 不限）；per_day 只是熔断 —— 防模型跑偏连点。
+        # 实测日均峰值一天 32 次，60 留 2 倍余量，正常巡更永远碰不到。
+        "like": {"enabled": False, "per_hour": 0, "per_day": 60,
+                 "same_video_once": True, "forbid": []},
     },
     "budget": {
         "max_subtitles_per_round": 5,
