@@ -7,6 +7,7 @@
 """
 import json
 import os
+import re
 import shutil
 import time
 import uuid
@@ -49,6 +50,23 @@ def atomic_write_config(d, mutate_fn, max_retries=3):
     die(f"config.json 在 {max_retries} 次重试期间仍被并发修改 —— 拒绝覆盖，请重跑", 9)
 
 
+_BAK_TS_RE = re.compile(r"(\d{8})-(\d{6})")
+
+
+def _bak_sort_key(p):
+    """备份轮转排序键：按**文件名里的时间戳**，不是 mtime。
+
+    坑：backup_config 用 shutil.copy2，会把被备份文件的 mtime 一起带过来，
+    所以 bak 的 st_mtime 是「里面那份配置被写入的时间」，不是「备份的时间」。
+    按 mtime 排会排错顺序（2026-11-18 查 11-14 那批 8 份 bak 时踩到）。
+    名字里没有时间戳的异常文件排最前 → 最先被轮转掉。
+    """
+    m = _BAK_TS_RE.search(p.name)
+    if m:
+        return (1, m.group(1), m.group(2), p.name)
+    return (0, "", "", p.name)
+
+
 def backup_config(d):
     """写 config.json 前调用：复制现有文件为 config.json.bak-<ts>，保留最近 10 份。
 
@@ -63,7 +81,7 @@ def backup_config(d):
         shutil.copy2(f, bak)
     except Exception:  # noqa: BLE001
         return None
-    baks = sorted(d.glob("config.json.bak-*"))
+    baks = sorted(d.glob("config.json.bak-*"), key=_bak_sort_key)
     for old in baks[:-10]:
         try:
             old.unlink()
