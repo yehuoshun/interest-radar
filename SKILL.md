@@ -58,6 +58,7 @@ python $R liked --bv BV1xxx                        # 平台侧「我赞过没有
 python $R feedback --topic "主题" --signal like|skip|note --bv BV1xxx --score 4
 python $R stats                                    # 权重 + 已看条数（给"每周提议"用）
 python $R config set <段.键> <值> [--yes] [--reason "…"]  # 改配置：默认干跑+自动备份 → config restore 可回滚；变更入账本
+python $R config set-many 段.键=值 [段.键=值 …] [--yes]  # 一个意图改多项：只备份 1 份、Atomic 一次写、逐项入账本
 python $R config restore [--list] [<备份名> --yes]   # 配置备份列表/还原（保留最近 10 份）
 python $R config log [--param 段.键] [--json]        # 参数变更账本（谁/何时/为何改，回滚与观察）
 python $R config observe <变更id> --note "…"         # 给某次变更补事后观察

@@ -135,7 +135,7 @@
 
 **处置进度（B1/B2 + 口径裁决已执行部分，2026-11-02）**
 - ✅ **B2 已做**：`max_subtitles_per_round` 键已删（config+模板）；`min_total_score` 接线为 `comment --score` 硬闸（低于它 code 拒发，exit 14）；verify-params 文案同步
-- ✅ **B1 已做**：敏感参数审批闸（`config propose/approve/reject`，25 键清单）
+- ✅ **B1 已做**：敏感参数审批闸（`config propose/approve/reject`，26 键清单；11-18 补 `budget.min_total_score` —— B2 硬闸阈值不该无批准可改）
 - ✅ **口径 AA 裁决已做（11-02）**：① #1 统一 10-27「每轮 @ ≤1」（charter:39-40 已同步）② #2 语义分层 + 加注（SKILL.md:84 / charter:24）③ 模板 `max_push_per_round` 3→1 ④ #7 cron prompt「最多 3 条字幕」→「每轮不限」——四改点到：charter / SKILL.md / 模板 / cron job 60d88f54
 - ⏳ 待老板定：**#4 `min_score=17` 幽灵值是否也下放为代码硬闸**（参考 min_total_score 的做法）；#5/#6 死配置清理（template / per_round 键）
 
@@ -143,7 +143,7 @@
 
 ## 操作手册（怎么改、怎么验）
 
-1. **改 config 参数** → 一律走 `radar.py config set <段.键> <值> [--yes]`（A3，2026-11-02）：**默认干跑**（打印 before→after，不写）；`--yes` 才写，**写前自动备份**（`config.json.bak-<ts>-<rand>`，保留最近 10 份）、写后重读校验；改错了 `config restore --list` 找备份 → `config restore <备份名> --yes` 一键还原（还原前会把当前值再备份一份，反悔可回）。敏感项（开关/白名单/频控）与死配置/漂移会显式提醒。`rate` 改 @ 频控同样自动备份。**每次变更自动写入参数变更账本**（A4，`state/param-history.jsonl`：谁/何时/为何改、前后值；restore 记回滚行与实际变动的参数）；顺手 `--reason "为什么改"`，事后 `config log` 看时间线、`config observe <变更id> --note "效果如何"` 补观察——**reason/观察只记人明说的，不编造**。热加载，下一轮立即生效。敏感项（频控/开关/白名单）改完**必须告诉我**，涉及账号安全的改动最好等我确认。
+1. **改 config 参数** → 一律走 `radar.py config set <段.键> <值> [--yes]`（A3，2026-11-02）：**默认干跑**（打印 before→after，不写）；`--yes` 才写，**写前自动备份**（`config.json.bak-<ts>-<rand>`，保留最近 10 份）、写后重读校验；改错了 `config restore --list` 找备份 → `config restore <备份名> --yes` 一键还原（还原前会把当前值再备份一份，反悔可回）。敏感项（开关/白名单/频控）与死配置/漂移会显式提醒。`rate` 改 @ 频控同样自动备份。**一个意图改多项**用 `config set-many <段.键=值> <段.键=值> … [--yes]`：只备份 1 份、一次原子写、逐项入账本（单条 `config set` 每条各备份一份，改 9 项就吃掉 9 个撤销槽 —— 11-14 那次正是如此）。备份轮转按**文件名里的时间戳**排（`shutil.copy2` 会把被备份配置的 mtime 带过来，用 mtime 判断先后会排错）。**每次变更自动写入参数变更账本**（A4，`state/param-history.jsonl`：谁/何时/为何改、前后值；restore 记回滚行与实际变动的参数）；顺手 `--reason "为什么改"`，事后 `config log` 看时间线、`config observe <变更id> --note "效果如何"` 补观察——**reason/观察只记人明说的，不编造**。热加载，下一轮立即生效。敏感项（频控/开关/白名单）改完**必须告诉我**，涉及账号安全的改动最好等我确认。
 2. **改模型规则**（阈值/条数/流程）→ 改 `SKILL.md` + `charter.md` **两处一起**（本文件揭示：单改一处必漂移）。charter 是最终口径。
 3. **改调度** → `scripts/schedule.py`（all / valley / `--every-minutes N`）打印 rrule + prompt，再用 DSH 的 `schedule_create` 建/改任务；`config.json` 的 `schedule` 段只是记录，不是权威。
 4. **验证**：

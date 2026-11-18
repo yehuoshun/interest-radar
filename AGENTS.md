@@ -40,6 +40,6 @@ B 站「兴趣雷达」：24 小时值班刷首页推荐流 → 一巡挑一条�
 
 ## 改完要做的
 
-- 跑单测：`cd scripts; python -m unittest discover -s tests`（当前 **167 例** —— 这个数字只写在这里，`tests/test_docs_consistency.py` 会跟实际用例数比对）。
+- 跑单测：`cd scripts; python -m unittest discover -s tests`（当前 **180 例** —— 这个数字只写在这里，`tests/test_docs_consistency.py` 会跟实际用例数比对）。
 - 动代码顺手更新 `AGENT.md` 的行号与符号表（它自己写着「行号会漂」）；用例数**只改上一行**，别再往 `SKILL.md` / `README.md` / `ci.yml` 里抄一份（抄了必漂，`test_docs_consistency.py` 会红）。
 - 临时文件写项目 `tmp/`（已 ignore），收尾删掉。
