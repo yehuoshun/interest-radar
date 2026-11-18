@@ -79,7 +79,7 @@
 | `write.dynamic.enabled / per_hour / per_day / forbid` | true / 0 / 3 / 词表 | dynamic.py:27、gates.py:79 |
 | `write.message.enabled / per_hour / per_day / allow_mid / forbid` | true / 0 / 5 / [主号] / 词表 | gates.py:79、notify.py（白名单硬闸） |
 | `write.comment.enabled / per_hour / per_day / same_video_once / forbid` | true / **1** / **10** / true / 词表 | gates.py:146-151（闸⑤）、comment.py（per_hour 11-13 由 3 收到 1、17:43 再归零 = 不限：老板「其实限制可以去掉」；**11-16 12:24 老板「降低写评论的频率」→ per_hour 0→1、per_day 0→10**，账本 chg-20261116-122456-74d8f3 / chg-20261116-122456-f7e0ec） |
-| `write.like.enabled / per_hour / per_day / same_video_once / forbid` | true / 0 / 0 / true / 词表 | gates.py:146、like.py（per_hour 11-13 由 6 收到 2、17:43 再归零 = 不限：老板「其实限制可以去掉」） |
+| `write.like.enabled / per_hour / per_day / same_video_once / forbid` | true / 0 / **60** / true / 词表 | gates.py:146、like.py（per_hour 11-13 由 6 收到 2、17:43 再归零 = 不限：老板「其实限制可以去掉」；**11-18 per_day 0→60 当熔断**：老板「明显不对劲就停」，实测日均峰值 32 次/天，60 留 2 倍余量，正常巡更永不触发） |
 | 动态/私信 ≤200 字、评论 ≤200 字 | —— | 代码常量 🔒 |
 
 ## D 组 · 陌生人草稿审批 — config `draft`（全部 ✅）
@@ -150,7 +150,7 @@
    - `python scripts/radar.py verify-params` — **参数采用对账**（A2，2026-11-02）：config 保存值 vs 真实账本/日报逐项对账，五档判定（✅ adopted / ⏳ pending / ❌ conflict / ⚠️ drift / 💤 not-consumed）；**conflict>0 → exit 3**（可直接挂到定时任务做告警位，平时静默、漂移/冲突才开口）。`--json` 给脚本用
    - `python scripts/radar.py rate` — 看 @ 频控用量与参数
    - `radar.py mention --bv <BV> --dry-run`（默认干跑）— 验闸与文案
-   - `cd scripts && python -m unittest discover tests -v` — 163 用例回归（零网络）
+   - `cd scripts && python -m unittest discover tests -v` — 全量用例回归（零网络；数量见 `AGENTS.md`）
 5. **审计口径**：本文件每次改参数后顺手核一遍「接线/漂移」列，保持地图与代码同步。
 
 ---
