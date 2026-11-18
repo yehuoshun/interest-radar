@@ -21,12 +21,12 @@
 |---|---|
 | **档案一开始是空的** | 脏种子比空种子贵：拿别人的收藏/历史数据当兴趣，只会把噪音训成口味 |
 | **宁缺勿滥，一天 0 条是合法输出** | 假阳性是在偷你的注意力，比漏一条贵得多 |
-| **写操作分档** | 读：无门槛；写：每档都有代码闸（开关 + `--yes` + 敏感词 + 频控 + 白名单）。只 @ 主号、只私信白名单；**自发评论 2026-10-27 老板放权**（不强制 @；11-13 17:43 频控归零 = 不限，只剩冷却 60 秒与同一视频一次） |
+| **写操作分档** | 读：无门槛；写：每档都有代码闸（开关 + `--yes` + 敏感词 + 频控 + 白名单）。只 @ 主号、只私信白名单；**自发评论 2026-10-27 老板放权**（不强制 @；具体频控以 `state/config.json` 为准，`0` = 不限 —— 数字别在文档里找，去 `PARAMETERS.md`） |
 | **不设条数配额** | 判断的是内容，不是钟点；一巡 0 互动合法，不为产量凑数 |
 | **一巡一条、把时长花掉** | 视频时长 + 1–3 分钟是节奏；一轮读两条会把节奏压平（11-13 19:54 老板） |
 | **判断归模型，算术归脚本** | 点赞/评论/@ 是判断，判重/权重/冷却/频控是算术 —— 后者别让模型心算 |
 
-## 实测状态（截至 2026-10-27 · commit e028c07）
+## 实测状态
 
 只列**真跑过**的。证据取自本机状态目录里的账本（`mention-log.jsonl` / `write-log.jsonl`），不是「写完就当能跑」。
 
@@ -45,7 +45,7 @@
 | 发动态 | `dynamic` | ✅ 实测 2 次 | `write-log.jsonl`，2026-10-19 |
 | 删动态 | `dynamic-del` | ✅ 实测 1 次 | `write-log.jsonl`，2026-10-19 |
 | 私信发送 | `msg` | ✅ 实测 1 次 | `write-log.jsonl`，2026-10-19，只发白名单 |
-| 自发评论 | `comment` | ✅ 实测（11-13 多条） | `write-log.jsonl`（kind=comment）；频控 0 = 不限 |
+| 自发评论 | `comment` | ✅ 实测（11-13 多条） | `write-log.jsonl`（kind=comment）；频控见 `PARAMETERS.md` |
 | 陌生人提问草稿 | `draft` | ⚠️ 试点中 | 必须草稿 → 本人审批 → 才发 |
 | 活跃度评估 | `engagement` | ✅ 单测覆盖 | 纯统计，无外部依赖 |
 | 弹幕 / 置顶评论 / 关注取关 | — | ❌ 不提供 | 有意不做 |
@@ -55,7 +55,7 @@
 ## 测试
 
 ```bash
-cd scripts && python -m unittest discover -s tests -v   # 163 用例 / 零网络 / 零 cookie / <1s
+cd scripts && python -m unittest discover -s tests -v   # 全部用例 / 零网络 / 零 cookie / <1s
 ```
 
 GitHub Actions 在 push 与 PR 上跑同一套：`.github/workflows/ci.yml`（语法检查 + 单测 + CLI 冒烟）。
@@ -131,7 +131,7 @@ scripts/radar.py      CLI 入口：取数 / 已赞 / 记反馈 / 权重
 scripts/init.py       初始化 state/（拷模板 + 默认 config.json）
 scripts/schedule.py   调度：打印 rrule + prompt 给 DSH（all / valley / --every-minutes）
 scripts/bili_radar/   实现（core / client / gates + 各域模块）
-scripts/tests/        163 用例（unittest，零网络）
+scripts/tests/        全部用例（unittest，零网络；数量见 AGENTS.md）
 state/                运行态（gitignore）：profile / charter / config / out / frames
 templates/            profile.md、charter.md、schedule-prompt.md
 ```
@@ -139,7 +139,7 @@ templates/            profile.md、charter.md、schedule-prompt.md
 ## 红线
 
 - **兴趣档案不出本机**：不进任何公开平台、不进评论、不进外部日志。
-- **写操作分档**（2026-10-19 老板放开发动态/私信）：闸全在代码里——`enabled` 开关、`--yes`、敏感词、频控（动态 ≤3/天、私信 ≤5/天、评论 ≤3/小时，可配）、私信白名单、连续失败自动关。cookie 能写，但口径不变：只 @ 主号、只私信白名单、不发档案内容。
+- **写操作分档**（2026-10-19 老板放开发动态/私信）：闸全在代码里——`enabled` 开关、`--yes`、敏感词、频控（数值以 `state/config.json` 为准，`0` = 不限）、私信白名单、连续失败自动关。cookie 能写，但口径不变：只 @ 主号、只私信白名单、不发档案内容。
 - 不确定的事**不编**，宁可写「没查到」。
 - 拿**小号**跑，别拿主号。
 

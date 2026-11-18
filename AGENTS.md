@@ -27,13 +27,19 @@ B 站「兴趣雷达」：24 小时值班刷首页推荐流 → 一巡挑一条�
 
 - 写操作默认**干跑**，加 `--yes` 才真发；写完冷却 `write.cooldown_sec`（60 秒）会挡住「点完赞立刻评论」。
 - `@` 老板**只走 `radar.py reply`**：`comment` 是自发评论路径，不记 `mention-log.jsonl`、不查 seen 的 `mentioned`（2026-11-13 踩过，SKILL.md 有标注）。
-- 同一视频只发一次（`same_video_once`）；每小时上限（like 2 / comment 1 / mention 2）原本是**防封号安全阀**，11-13 17:43 老板说「其实限制可以去掉」→ 三个 `per_hour` 已归零（`=0` 即不限）；现在只剩写冷却 60 秒 + 同一视频一次两道真闸。
+- 同一视频只发一次（`same_video_once`）；频控数字**只认 `state/config.json` 当前值**（`0` = 不限），**别在文档里复述** —— 复述必漂：11-13 全部归零后，11-16 又把评论调回有限额，散文就没跟上。`like` 另有 `per_day` 熔断（防模型跑偏连点），具体值见 `PARAMETERS.md`。
 - **已赞跳过**：`radar.py liked --bv` 查平台状态（11-14 老板「已点赞的视频也跳过，不用扫本地文件判断是否已读」）；巡更不拿 `seen.md` 判已读，`seen.md` 只由 `reply` 写 @ 去重。
 - 分数阈值已作废：`budget.min_total_score = 0`、`mention.min_score = 0`（老板「不要设定阈值」）。判断交回模型，闸只防爆号。
 - **凭据与运行态不进仓库**：cookie 在工作区 `config/bilibili_cookies.txt`（`core.py:12-15` 的候选顺序：工作区 config → 仓库 config → 旧 OpenClaw）；运行数据全在 `state/`（`.gitignore` 已挡：`config.json`、`seen.md`、`out/`、`jitter-log.jsonl`、`write-log.jsonl`、`mention-log.jsonl`）。不要把 `state/` 内容、cookie、头像缓存贴进提交或对话。
 
+## 已知取舍（是决定，不是遗留）
+
+- **抽帧仍用 `/x/player/wbi/playurl`**（`scripts/bili_radar/media/frames.py:280`）：手动 CLI，不在巡更主流程里；结果落 `state/frames/`，不进仓库、不对外提供。cn-reach（另一仓库）已经把这个接口从**对外能力面**删掉了，判断标准是「有没有把能力暴露给别人」——暴露了就能被当下载器用，不是「接口本身脏」。所以别照抄那边的删除决定，也别在这边加「导出直链 / 批量下载」这类功能。
+- **`state/config.json.bak-*` 是有上限的撤销历史**（轮转只留最近 10 份，`radar.py cfg list/restore` 能列和回滚），不是垃圾，别随手清。
+- **`tmp/` 是草稿区**（已 ignore）：`.err` 和一次性脚本随便堆，但收尾要自己删；别把 `tmp/` 当长期存储。
+
 ## 改完要做的
 
-- 跑单测：`cd scripts; python -m unittest discover -s tests`（当前 **160 例**）。
-- 动代码顺手更新 `AGENT.md` 的行号与符号表（它自己写着「行号会漂」），用例数变了同步 `SKILL.md` / `PARAMETERS.md` / `README.md` / `.github/workflows/ci.yml`。
+- 跑单测：`cd scripts; python -m unittest discover -s tests`（当前 **167 例** —— 这个数字只写在这里，`tests/test_docs_consistency.py` 会跟实际用例数比对）。
+- 动代码顺手更新 `AGENT.md` 的行号与符号表（它自己写着「行号会漂」）；用例数**只改上一行**，别再往 `SKILL.md` / `README.md` / `ci.yml` 里抄一份（抄了必漂，`test_docs_consistency.py` 会红）。
 - 临时文件写项目 `tmp/`（已 ignore），收尾删掉。
