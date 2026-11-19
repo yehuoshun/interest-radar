@@ -29,7 +29,7 @@ from bili_radar.gates import (_ago_h, _record_write, _write_cooldown, _write_fai
 
 # ── 域模块 ─────────────────────────────────────────────────────
 from bili_radar.browse import (cmd_check, cmd_desc, cmd_feed, cmd_liked, cmd_search, cmd_seen,
-                       cmd_sub, fetch_subtitle_text)
+                       cmd_sub, fetch_subtitle_text, fold_text)
 from bili_radar.cfg_tool import (cmd_cfg_approve, cmd_cfg_proposals, cmd_cfg_propose,
                    cmd_cfg_reject, cmd_cfg_restore, cmd_cfg_set, cmd_cfg_set_many)
 from bili_radar.history import (append_change, append_observe, append_rollback,
@@ -63,6 +63,8 @@ def build_parser():
     s = sub.add_parser("sub")
     s.add_argument("bv")
     s.add_argument("--max-chars", dest="max_chars", type=int, default=6000)
+    s.add_argument("--wrap", type=int, default=80,
+                   help="text_wrapped 的折行宽度（默认 80 字；0 = 不折，只要整行 text）")
     s.set_defaults(fn=cmd_sub)
 
     s = sub.add_parser("desc")

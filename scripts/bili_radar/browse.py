@@ -143,6 +143,46 @@ def fetch_subtitle_text(cookie: str, bv: str, cid: int):
     return (text or None), pick.get("lan")
 
 
+FOLD_CHARS = 80
+
+# 折行点：先找句末标点，再退到次级标点，都没有才硬切。
+_SENT_END = "。！？；…!?;"
+_SOFT_END = "，、,：:·）)】」』"
+
+
+def _break_index(buf: str, width: int) -> int:
+    """buf 已到 width 长：在 [width//2, width) 里往回找最靠后的断点，返回断点后一位。"""
+    floor = max(1, width // 2)
+    for marks in (_SENT_END, _SOFT_END):
+        for i in range(width - 1, floor - 1, -1):
+            if buf[i] in marks:
+                return i + 1
+    return width
+
+
+def fold_text(text: str, width: int = FOLD_CHARS) -> str:
+    """把一整条字幕折成多行 —— 只加换行，不删字（去掉换行后与原文完全一致）。
+
+    来由（2026-11-19 第 19 巡）：`sub` 的 text 是 5199 字的一整行，而 read 工具按 2000 字
+    截**单行** —— 读一条字幕得先自己折一遍才看得全。折好直接放进 `text_wrapped`，叫模型
+    读那个键就行；`text` 保持整行不变（旧调用方与测试不受影响）。
+    width <= 0 原样返回；断行优先句末标点，其次逗号顿号，都没有才硬切。
+    """
+    if width <= 0 or not text:
+        return text
+    lines, buf = [], ""
+    for ch in text:
+        buf += ch
+        if len(buf) < width:
+            continue
+        cut = _break_index(buf, width)
+        lines.append(buf[:cut])
+        buf = buf[cut:]
+    if buf:
+        lines.append(buf)
+    return "\n".join(lines)
+
+
 DESC_MAX = 1200
 
 
@@ -201,11 +241,13 @@ def cmd_sub(a):
                               "chars": len(text), "duration": dur,
                               **_desc_fields(v)}, ensure_ascii=False))
             return
+    shown = text[:a.max_chars]
     print(json.dumps({
         "bvid": a.bv, "title": title, "lan": lan,
         "chars": len(text), "lines": len(text), "duration": dur,
         "rate": round(rate, 2), "suspect": suspect,
-        "text": text[:a.max_chars],
+        "text": shown,
+        "text_wrapped": fold_text(shown, getattr(a, "wrap", FOLD_CHARS)),
         "truncated": len(text) > a.max_chars,
         **_desc_fields(v),
     }, ensure_ascii=False))
