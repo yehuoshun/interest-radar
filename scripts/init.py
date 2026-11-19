@@ -21,7 +21,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from bili_radar.core import REPO_ROOT, cookie_path, die, state_dir  # noqa: E402
+from bili_radar.core import (REPO_ROOT, cookie_path, die, enable_utf8_stdout,
+                             state_dir)  # noqa: E402
+
+enable_utf8_stdout()
 
 # 干净起点：所有对外写操作一律关着。要发东西必须自己改 config + 命令行加 --yes。
 DEFAULT_CONFIG = {

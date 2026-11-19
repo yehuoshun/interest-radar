@@ -40,7 +40,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from bili_radar.core import REPO_ROOT, read_config, state_dir  # noqa: E402
+from bili_radar.core import REPO_ROOT, enable_utf8_stdout, read_config, state_dir  # noqa: E402
+
+enable_utf8_stdout()
 
 # 用固定 UTC+8，不用 zoneinfo：Windows 自带没有 IANA tzdata（会报 No module named 'tzdata'），
 # 而中国自 1991 年起没有夏令时，UTC+8 就是 Asia/Shanghai。
