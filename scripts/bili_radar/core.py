@@ -49,6 +49,20 @@ def die(msg, code=1):
     sys.exit(code)
 
 
+def enable_utf8_stdout():
+    """把所有入口脚本的 stdout/stderr 改成 UTF-8（Windows 默认 GBK 会崩）。
+
+    来由（2026-11-19）：Windows 控制台与管道默认按 GBK 编码，B 站文案里的 \xa0、
+    emoji、异体字会让 print 抛 UnicodeEncodeError，整条命令死在最后一行输出上。
+    入口脚本一进来调一次，坏字节退化成替换符而不是中断（errors="replace"）。
+
+    只 reconfigure 有该方法的流：测试里常把 sys.stdout 换成 StringIO，没有这个方法。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def repo_root() -> Path:
     return REPO_ROOT
 

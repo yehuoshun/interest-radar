@@ -31,7 +31,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from bili_radar.core import cookie_path, die, ensure_state_dir, repo_root  # noqa: E402
+from bili_radar.core import (cookie_path, die, enable_utf8_stdout, ensure_state_dir,
+                             repo_root)  # noqa: E402
+
+enable_utf8_stdout()
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")

@@ -11,6 +11,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from bili_radar.core import enable_utf8_stdout  # noqa: E402
+
+enable_utf8_stdout()
+
 from bili_radar.media.frames import main  # noqa: E402
 
 if __name__ == "__main__":

@@ -24,12 +24,10 @@ import random
 import sys
 from datetime import datetime, timedelta, timezone
 
-# Windows 下 stdout 默认按 GBK 编码，中文里夹的 \xa0 之类会 UnicodeEncodeError 崩掉整条命令。
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(encoding="utf-8", errors="replace")
+from bili_radar.core import enable_utf8_stdout, state_dir
 
-from bili_radar.core import state_dir
+# Windows 下 stdout 默认按 GBK 编码，中文里夹的 \xa0 之类会 UnicodeEncodeError 崩掉整条命令。
+enable_utf8_stdout()
 
 TZ = timezone(timedelta(hours=8))
 
