@@ -102,7 +102,7 @@ python $R check-reply --bv BV1xxx --rpid 123456     # 匿名能不能看到这�
 就代表我感兴趣，你就可以按照建画像了。你自己刷没必要按照雷达，纯给你自己学习。」
 
 - 不再按关键词挖线索，改用首页推荐流：`radar.py feed --num 12 --rounds 1`。
-- **一巡只真读一条**（`radar.py sub <BV>`），读完再决定：
+- **一巡只真读一条**（`radar.py sub <BV>`），读的是输出里的 `text_wrapped`（默认按 80 字折行；`text` 是整行原文，长片会被单行截断），读完再决定：
   - 好 → `radar.py like --bv BV1xxx --yes`（写闸 `write.like`，`per_hour` 11-13 17:43 起为 0 = 不限；同一视频只点一次；`--cancel` 取消赞）
   - 有话要说 → `radar.py comment --bv BV1xxx --text "…" --yes`（自发评论，≤200 字，**不走 mention 闸**）
   - 觉得老板会感兴趣 → `radar.py reply --bv BV1xxx --text "@夜灬瞬 …" --yes`（**只有这条走 mention 闸 / 频控 / 同一视频只发一次**）

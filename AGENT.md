@@ -55,21 +55,21 @@ graph TD
 
 ## 2. 模块地图
 
-`scripts/` 下（行数为 2026-11-14 快照；本次改动核对了 cli/browse/comment/like 的行号）：
+`scripts/` 下（行数为 2026-11-19 快照；字幕折行 + 入口统一 UTF-8 那次核对过 core/browse/cli/各薄壳）：
 
 | 文件 | 行数 | 职责 | 关键符号（起始行） |
 |---|---|---|---|
-| `radar.py` | 24 | CLI 薄壳：stdout/stderr 改 UTF-8 + `sys.path` + `from bili_radar.cli import main` | — |
-| `frames.py` | 17 | 抽帧薄壳 → `bili_radar.media.frames.main` | — |
-| `init.py` | 114 | 初始化 state/：建 out/frames、拷模板、写默认 config.json（写操作全关）、打印 cookie 路径 | `DEFAULT_CONFIG:27` `_copy_template:67` `main:79` |
-| `bili_qr_login.py` | 180 | 扫码登录自救（纯标准库 urllib；`qrcode` 仅出图用，可选依赖） | `http_json:47` `follow:53` `cookies_dict:64` `main:68` `write_cookie:152` |
-| `plan.py` | 154 | 下一次什么时候醒：`last_seen`（= 收尾打卡 / 看完那一刻）+ 1–10 分钟 → 一次性闹钟；`gate` 只防同一分钟重复触发（2026-11-13） | `TZ:31` `REST_MIN:33` `REST_MAX:34` `last_seen:38` `last_scan:60` `rest_min:65` `next_wake:81` `wake_rrule:91` `gate:97` `describe:120` `main:126` |
-| `schedule.py` | 206 | 打印调度的 rrule + prompt（all / valley / night / `--every-minutes` / `--random-minute`）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:47` `HOURS:48` `DESC:54` `MINUTE_LO:62` `RANDOM_LEAD_MINUTES:64` `pick_minute:67` `next_start:78` `build_rrule:92` `INTERVAL_MODE_RE:101` `build_interval_rrule:110` `describe:122` `plan:129` `prompt_text:137` `save_state:144` `main:162` |
-| `bili_radar/core.py` | 111 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:42` `workspace_root:51` `state_dir:59` `ensure_state_dir:66` `cookie_candidates:72` `cookie_path:81` `load_cookie:91` `read_config:103` `clean:111` |
+| `radar.py` | 22 | CLI 薄壳：`sys.path` + `enable_utf8_stdout()` + `from bili_radar.cli import main` | `main` 在 cli.py |
+| `frames.py` | 21 | 抽帧薄壳：`sys.path` + `enable_utf8_stdout()` → `bili_radar.media.frames.main` | — |
+| `init.py` | 121 | 初始化 state/：建 out/frames、拷模板、写默认 config.json（写操作全关）、打印 cookie 路径 | `DEFAULT_CONFIG:27` `_copy_template:67` `main:79` |
+| `bili_qr_login.py` | 183 | 扫码登录自救（纯标准库 urllib；`qrcode` 仅出图用，可选依赖） | `http_json:47` `follow:53` `cookies_dict:64` `main:68` `write_cookie:152` |
+| `plan.py` | 155 | 下一次什么时候醒：`last_seen`（= 收尾打卡 / 看完那一刻）+ 1–10 分钟 → 一次性闹钟；`gate` 只防同一分钟重复触发（2026-11-13） | `TZ:32` `REST_MIN:34` `REST_MAX:35` `last_seen:39` `last_scan:61` `rest_min:66` `next_wake:82` `wake_rrule:92` `gate:98` `describe:121` `main:127` |
+| `schedule.py` | 208 | 打印调度的 rrule + prompt（all / valley / night / `--every-minutes` / `--random-minute`）—— 替代 OpenClaw 版 `apply-cron.py`（已删） | `TZ:47` `HOURS:48` `DESC:54` `MINUTE_LO:62` `RANDOM_LEAD_MINUTES:64` `pick_minute:67` `next_start:78` `build_rrule:92` `INTERVAL_MODE_RE:101` `build_interval_rrule:110` `describe:122` `plan:129` `prompt_text:137` `save_state:144` `main:162` |
+| `bili_radar/core.py` | 132 | 基建，零依赖 | `UA:31` `API:33` `REPO_ROOT:36` `COOKIE_NAME:38` `LEGACY_COOKIE:39` `die:47` `enable_utf8_stdout:52` `workspace_root:70` `state_dir:78` `ensure_state_dir:85` `cookie_candidates:91` `cookie_path:101` `load_cookie:111` `read_config:123` `clean:131` |
 | `bili_radar/client.py` | 173 | 请求层 | `MIX:19` `_BACKOFF:25` `_retry_sleep:28` `_note_ok:33` `_note_fail:37` `get:43` `wbi_keys:92` `wbi_sign:100` `csrf_from_cookie:106` `post_json:111` `post_form:144` |
 | `bili_radar/gates.py` | 144 | 写闸 | `note_failure:15` `write_log:33` `_write_cooldown:46` `_write_gate:73` `_write_fail:95` `_record_write:123` `mention_log:128` `_ago_h:141` |
-| `bili_radar/cli.py` | 243 | argparse 路由 + re-export | `build_parser:48`（`main:234` 只做 parse + dispatch；各 `add_parser` 见 3 节） |
-| `bili_radar/browse.py` | 198 | 浏览域（含首页推荐流 `cmd_feed`、平台已赞查询 `cmd_liked`） | `cmd_check:15` `cmd_search:31` `cmd_feed:70` `cmd_liked:111` `fetch_subtitle_text:122` `cmd_sub:146` `cmd_seen:173` |
+| `bili_radar/cli.py` | 260 | argparse 路由 + re-export | `build_parser:48`（`main:252` 只做 parse + dispatch；各 `add_parser` 见 3 节） |
+| `bili_radar/browse.py` | 280 | 浏览域（首页推荐流 `cmd_feed`、平台已赞 `cmd_liked`、字幕 `cmd_sub` + 字幕折行 `fold_text`） | `cmd_check:15` `cmd_search:31` `cmd_feed:70` `cmd_liked:111` `fetch_subtitle_text:122` `FOLD_CHARS:146` `_break_index:153` `fold_text:163` `_desc_fields:189` `cmd_desc:207` `cmd_sub:225` `cmd_seen:256` |
 | `bili_radar/comment.py` | 378 | 评论域（最大） | `post_reply:20` `cmd_reply:39` `cmd_rate:142` `fetch_hot_comments:185` `cmd_comment_check:199` `cmd_comment:249` `anon_get:335` `visible_anon:346` `cmd_check_reply:373` |
 | `bili_radar/draft.py` | 184 | 草稿审核状态机 | `drafts_file:19` `load_drafts:23` `save_drafts:38` `cmd_draft:44` |
 | `bili_radar/notify.py` | 198 | 通知 / 私信读写 | `cmd_msg:18` `cmd_dm:73` `cmd_notify:135` `radar_unread:198` |
@@ -92,7 +92,7 @@ graph TD
 |---|---|---|---|
 | `check` | 53 | `cmd_check` | `browse.py:15` |
 | `search` | 55 | `cmd_search` | `browse.py:31` |
-| `sub` | 63 | `cmd_sub` | `browse.py:146` |
+| `sub`（`--max-chars` `--wrap` 折行宽度，0=不折） | 63 | `cmd_sub` | `browse.py:225`（折行 `fold_text` `browse.py:163`） |
 | `seen` (check/add) | 68 | `cmd_seen` | `browse.py:173` |
 | `reply`（@主号/楼中楼） | 73 | `cmd_reply` | `comment.py:39` |
 | `feed`（首页推荐流，只读） | 80 | `cmd_feed` | `browse.py:70` |
@@ -245,6 +245,7 @@ cd <skill>/scripts && python -m unittest discover tests -v
 | `test_liked.py` | 平台已赞查询（true / false / parser） | 3 例 |
 | `test_plan.py` | 歇息区间 1–10 分钟 / 用 `randint` 掷 / `last_seen` 认 open・rest・close 三种记录 / `next_wake` = 上一条 + 1–10 / 不排过去的闹钟 / `wake_rrule` 一次性 / `gate` 只挡同一分钟 | 7 例 |
 | `test_schedule.py` | rrule 生成（DAILY+BY 部件 / MINUTELY 间隔无 BY / 随机分钟范围 / 拨钟提前量） | 10 例 |
+| `test_text_fold.py` | 字幕折行 `fold_text`（不丢字 / 每行不超宽 / 优先句末标点 / 无标点硬切 / `--wrap 0` 原样）+ 每个入口脚本都调 `enable_utf8_stdout` + `sub --wrap` 解析 | 13 例 |
 | `test_write_cooldown.py` | 写冷却（两账本取最新） | 5 例 |
 
 **规矩**：改核心闸逻辑（draft/engagement/冷却/退避）**必须跑一遍全绿**；新功能补测试。全量用例数只写在 `AGENTS.md`（`tests/test_docs_consistency.py` 会比），这里不重复。
@@ -259,13 +260,14 @@ cd <skill>/scripts && python -m unittest discover tests -v
 4. **写操作默认干跑**：所有写命令（reply/comment/dynamic/msg/draft approve）**默认 dry-run**，真发要 `--yes`；干跑不触发写冷却。
 5. **闸写在代码里，不靠提示词**：新增写能力必须过 `_write_gate` + 敏感词 fail-closed + 频控 + `--yes`。
 6. **删动态不冷却**（`_write_gate(..., rate=False)`，纠错优先）。
-7. **字幕必须 wbi 签名**（`player/wbi/v2`）：旧接口 `x/player/v2` 会返回**别的视频的字幕**（2026-10-15 事故）。`cmd_sub` 另有语速合理性校验兜底。
+7. **字幕必须 wbi 签名**（`player/wbi/v2`）：旧接口 `x/player/v2` 会返回**别的视频的字幕**（2026-10-15 事故）。`cmd_sub` 另有语速合理性校验兜底输出里 `text` 是整行原文、`text_wrapped` 是按 `--wrap`（默认 80 字）折好的版本 —— **读字幕用 `text_wrapped`**，整行 5000 字会被 read 工具按单行 2000 字截断（2026-11-19 第 19 巡踩过）。
 8. **`media/frames.py` 自带一份请求/wbi 代码**（`http_get_json`/`wbi_keys`/`wbi_sign`），**不从 `client.py` 走** —— 因为抽帧是独立入口。改请求层退避时**两处都要看**。
 9. **抽帧在线拉流会崩**：沙箱 ffmpeg 拉 CDN 流段错误 → 自动降级**稀疏下载**（`mp4_sparse`），非 faststart 才回退整片下载。这是 `frames.py:314`（`sparse_plan`）→ `:318`（回退 `download_video`）的分支逻辑。
 10. **`bili_qr_login.py` 不再用 requests**：全 urllib；`qrcode` 只在出图时 import（缺包 → 打印 `QR_URL` + `MISSING_DEP`，exit 4），是 cookie 失效时的免手动导出兜底。
 11. **`state_dir()` 定位法**：`$INTERESTS_DIR` 或 `<仓库根>/state`，**别向上找标记目录**（OpenClaw 那套已废弃：包化后踩过一次坑）。
 12. **判重/权重/阈值是算术（脚本做），打分是判断（模型做）** —— 别把判断塞进脚本。
 13. 改完代码**顺手更新本文件行号**；提交带版本号（仓库有 bump 规矩的话）。
+14. **Windows 控制台/管道默认 GBK，每个入口脚本都要调 `enable_utf8_stdout()`**（`core.py:52`）：`tests/test_text_fold.py` 会遍历 `scripts/*.py` 检查漏没漏。自己临时写的 `python -c 'print(中文)'` 不在保护范围，用 `python -X utf8 -c ...` 或先 `set PYTHONUTF8=1`（原样报错：`'gbk' codec can't encode character '\u2728'`）。
 
 ---
 
